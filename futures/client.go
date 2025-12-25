@@ -19,21 +19,21 @@ package futures
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"time"
+
 	"github.com/json-iterator/go"
 	"github.com/khanbekov/go-bitget/common"
 	"github.com/khanbekov/go-bitget/common/client"
 	"github.com/khanbekov/go-bitget/common/types"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
-	"net"
-	"net/url"
 
-	//jsoniter "github.com/json-iterator/go"
+	// jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
-	"net/http"
-	"os"
-	"time"
-
 	// NOTE: Subdirectory package imports removed to avoid import cycles
 	// Factory methods will be implemented using interface{} returns
 )
@@ -69,6 +69,7 @@ type Client struct {
 
 	// Request signing
 	signer *common.Signer
+	isDemo bool
 }
 
 // NewClient initializes a new Bitget futures API client with the provided credentials.
@@ -86,7 +87,7 @@ type Client struct {
 //
 //	client := NewClient("your_api_key", "your_secret_key", "your_passphrase")
 //	candles, err := client.NewCandlestickService().Symbol("BTCUSDT").Do(ctx)
-func NewClient(apiKey, secretKey, passphrase string) *Client {
+func NewClient(apiKey, secretKey, passphrase string, isDemo bool) *Client {
 	return &Client{
 		apiKey:     apiKey,
 		secretKey:  secretKey,
@@ -96,6 +97,7 @@ func NewClient(apiKey, secretKey, passphrase string) *Client {
 		UserAgent:  "Bitget/golang",
 		fastClient: &fasthttp.Client{},
 		Logger:     zerolog.New(os.Stderr).With().Timestamp().Logger(),
+		isDemo:     isDemo,
 	}
 }
 
@@ -150,6 +152,9 @@ func (c *Client) CallAPI(ctx context.Context, method string, endpoint string, qu
 			}
 			sign := c.signer.Sign(method, endpoint, reqParamStr, ts)
 			req.Header.Set("ACCESS-SIGN", sign)
+		}
+		if c.isDemo {
+			req.Header.Set("paptrading", "1")
 		}
 
 		// Execute request
@@ -274,7 +279,7 @@ func (c *Client) GetUrl(endpoint string) string {
 //   result, err := positions.ProductType("USDT-FUTURES").Do(ctx)
 //
 // This approach provides:
-// - Strong type safety 
+// - Strong type safety
 // - No import cycles
 // - Clear package organization
 // - Better IDE support with auto-completion
