@@ -5,11 +5,12 @@ package futures
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/khanbekov/go-bitget/common"
 	"github.com/khanbekov/go-bitget/ws"
 	"github.com/rs/zerolog"
-	"os"
-	"time"
 )
 
 // WebSocketClientInterface defines the interface for WebSocket operations
@@ -442,12 +443,12 @@ func (wm *WebSocketManager) SetConnectionCheckInterval(interval time.Duration) {
 
 // Message handlers
 
-func (wm *WebSocketManager) defaultMessageHandler(message string) {
-	wm.logger.Debug().Str("message", message).Msg("WebSocket message received")
+func (wm *WebSocketManager) defaultMessageHandler(message []byte) {
+	wm.logger.Debug().Str("message", string(message)).Msg("WebSocket message received")
 }
 
-func (wm *WebSocketManager) errorHandler(message string) {
-	wm.logger.Error().Str("error", message).Msg("WebSocket error received")
+func (wm *WebSocketManager) errorHandler(message []byte) {
+	wm.logger.Error().Str("error", string(message)).Msg("WebSocket error received")
 }
 
 // High-level convenience methods
@@ -564,14 +565,14 @@ func DefaultMarketDataConfig() MarketDataConfig {
 		CandleTimeframe: ws.Timeframe1m,
 		OrderBookLevels: 5,
 
-		TickerHandler: func(message string) {
-			fmt.Printf("TICKER: %s\n", message)
+		TickerHandler: func(message []byte) {
+			fmt.Printf("TICKER: %s\n", string(message))
 		},
-		CandleHandler: func(message string) {
-			fmt.Printf("CANDLE: %s\n", message)
+		CandleHandler: func(message []byte) {
+			fmt.Printf("CANDLE: %s\n", string(message))
 		},
-		OrderBookHandler: func(message string) {
-			fmt.Printf("ORDERBOOK: %s\n", message)
+		OrderBookHandler: func(message []byte) {
+			fmt.Printf("ORDERBOOK: %s\n", string(message))
 		},
 	}
 }
@@ -584,14 +585,14 @@ func DefaultTradingStreamConfig() TradingStreamConfig {
 		EnablePositions: true,
 		EnableAccount:   false,
 
-		OrderHandler: func(message string) {
-			fmt.Printf("ORDER: %s\n", message)
+		OrderHandler: func(message []byte) {
+			fmt.Printf("ORDER: %s\n", string(message))
 		},
-		FillHandler: func(message string) {
-			fmt.Printf("FILL: %s\n", message)
+		FillHandler: func(message []byte) {
+			fmt.Printf("FILL: %s\n", string(message))
 		},
-		PositionHandler: func(message string) {
-			fmt.Printf("POSITION: %s\n", message)
+		PositionHandler: func(message []byte) {
+			fmt.Printf("POSITION: %s\n", string(message))
 		},
 	}
 }

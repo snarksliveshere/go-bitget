@@ -35,16 +35,16 @@ const (
 
 // MarketData holds real-time market information
 type MarketData struct {
-	Symbol        string    `json:"symbol"`
-	Price         float64   `json:"price"`
-	Volume24h     float64   `json:"volume24h"`
-	Change24h     float64   `json:"change24h"`
-	MarkPrice     float64   `json:"markPrice"`
-	FundingRate   float64   `json:"fundingRate"`
-	LastUpdate    time.Time `json:"lastUpdate"`
-	BestBid       float64   `json:"bestBid"`
-	BestAsk       float64   `json:"bestAsk"`
-	Spread        float64   `json:"spread"`
+	Symbol      string    `json:"symbol"`
+	Price       float64   `json:"price"`
+	Volume24h   float64   `json:"volume24h"`
+	Change24h   float64   `json:"change24h"`
+	MarkPrice   float64   `json:"markPrice"`
+	FundingRate float64   `json:"fundingRate"`
+	LastUpdate  time.Time `json:"lastUpdate"`
+	BestBid     float64   `json:"bestBid"`
+	BestAsk     float64   `json:"bestAsk"`
+	Spread      float64   `json:"spread"`
 }
 
 // Position represents a trading position
@@ -59,39 +59,39 @@ type Position struct {
 
 // Order represents an active order
 type Order struct {
-	OrderID      string    `json:"orderId"`
-	Symbol       string    `json:"symbol"`
-	Side         string    `json:"side"`
-	Size         float64   `json:"size"`
-	Price        float64   `json:"price"`
-	Status       string    `json:"status"`
-	Type         string    `json:"type"`
-	CreatedTime  time.Time `json:"createdTime"`
+	OrderID     string    `json:"orderId"`
+	Symbol      string    `json:"symbol"`
+	Side        string    `json:"side"`
+	Size        float64   `json:"size"`
+	Price       float64   `json:"price"`
+	Status      string    `json:"status"`
+	Type        string    `json:"type"`
+	CreatedTime time.Time `json:"createdTime"`
 }
 
 // TradingBotManager manages multiple trading scenarios
 type TradingBotManager struct {
-	client         *futures.Client
-	wsManager      *futures.WebSocketManager
-	logger         zerolog.Logger
-	ctx            context.Context
-	cancel         context.CancelFunc
-	
+	client    *futures.Client
+	wsManager *futures.WebSocketManager
+	logger    zerolog.Logger
+	ctx       context.Context
+	cancel    context.CancelFunc
+
 	// Data storage
-	marketData     map[string]*MarketData
-	positions      map[string]*Position
-	activeOrders   map[string]*Order
-	
+	marketData   map[string]*MarketData
+	positions    map[string]*Position
+	activeOrders map[string]*Order
+
 	// Synchronization
-	marketMutex    sync.RWMutex
-	positionMutex  sync.RWMutex
-	orderMutex     sync.RWMutex
-	
+	marketMutex   sync.RWMutex
+	positionMutex sync.RWMutex
+	orderMutex    sync.RWMutex
+
 	// Trading parameters
-	symbols        []string
-	maxPositions   int
-	riskLimit      float64
-	
+	symbols      []string
+	maxPositions int
+	riskLimit    float64
+
 	// Statistics
 	tradesExecuted int64
 	profitLoss     float64
@@ -101,10 +101,10 @@ type TradingBotManager struct {
 // NewTradingBotManager creates a new trading bot manager
 func NewTradingBotManager(apiKey, secretKey, passphrase string, logger zerolog.Logger) *TradingBotManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	
-	client := futures.NewClient(apiKey, secretKey, passphrase)
+
+	client := futures.NewClient(apiKey, secretKey, passphrase, false)
 	wsManager := client.NewWebSocketManager()
-	
+
 	return &TradingBotManager{
 		client:       client,
 		wsManager:    wsManager,
@@ -192,19 +192,19 @@ func (tbm *TradingBotManager) setupMarketDataSubscriptions() {
 	for _, symbol := range tbm.symbols {
 		// Subscribe to ticker for price updates
 		tbm.wsManager.SubscribeToTicker(symbol, tbm.createTickerHandler(symbol))
-		
+
 		// Subscribe to order book for spread calculation
 		tbm.wsManager.SubscribeToOrderBook(symbol, 5, tbm.createOrderBookHandler(symbol))
-		
+
 		// Subscribe to mark price
 		tbm.wsManager.SubscribeToMarkPrice(symbol, tbm.createMarkPriceHandler(symbol))
-		
+
 		// Subscribe to funding rate
 		tbm.wsManager.SubscribeToFunding(symbol, tbm.createFundingHandler(symbol))
-		
+
 		time.Sleep(200 * time.Millisecond)
 	}
-	
+
 	tbm.logger.Info().
 		Int("symbols", len(tbm.symbols)).
 		Int("subscriptions", tbm.wsManager.GetSubscriptionCount()).
@@ -219,76 +219,76 @@ func (tbm *TradingBotManager) setupPrivateSubscriptions() error {
 		EnableFills:     true,
 		EnablePositions: true,
 		EnableAccount:   true,
-		
+
 		OrderHandler:    tbm.createOrderUpdateHandler(),
 		FillHandler:     tbm.createFillUpdateHandler(),
 		PositionHandler: tbm.createPositionUpdateHandler(),
 		AccountHandler:  tbm.createAccountUpdateHandler(),
 	}
-	
+
 	return tbm.wsManager.CreateTradingStream(tbm.ctx, os.Getenv("BITGET_API_KEY"), os.Getenv("BITGET_PASSPHRASE"), config)
 }
 
 // Message Handlers
 
 func (tbm *TradingBotManager) createTickerHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		// Parse ticker data (simplified - would need actual JSON parsing)
-		tbm.updateMarketPrice(symbol, tbm.extractPriceFromMessage(message))
+		tbm.updateMarketPrice(symbol, tbm.extractPriceFromMessage(string(message)))
 	}
 }
 
 func (tbm *TradingBotManager) createOrderBookHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		// Parse order book and update spread
-		bid, ask := tbm.extractBidAskFromMessage(message)
+		bid, ask := tbm.extractBidAskFromMessage(string(message))
 		tbm.updateBidAsk(symbol, bid, ask)
 	}
 }
 
 func (tbm *TradingBotManager) createMarkPriceHandler(symbol string) ws.OnReceive {
-	return func(message string) {
-		markPrice := tbm.extractMarkPriceFromMessage(message)
+	return func(message []byte) {
+		markPrice := tbm.extractMarkPriceFromMessage(string(message))
 		tbm.updateMarkPrice(symbol, markPrice)
 	}
 }
 
 func (tbm *TradingBotManager) createFundingHandler(symbol string) ws.OnReceive {
-	return func(message string) {
-		fundingRate := tbm.extractFundingRateFromMessage(message)
+	return func(message []byte) {
+		fundingRate := tbm.extractFundingRateFromMessage(string(message))
 		tbm.updateFundingRate(symbol, fundingRate)
 	}
 }
 
 func (tbm *TradingBotManager) createOrderUpdateHandler() ws.OnReceive {
-	return func(message string) {
-		tbm.logger.Info().Str("data", message).Msg("📋 Order Update")
+	return func(message []byte) {
+		tbm.logger.Info().Str("data", string(message)).Msg("📋 Order Update")
 		// Parse and update order status
-		tbm.handleOrderUpdate(message)
+		tbm.handleOrderUpdate(string(message))
 	}
 }
 
 func (tbm *TradingBotManager) createFillUpdateHandler() ws.OnReceive {
-	return func(message string) {
-		tbm.logger.Info().Str("data", message).Msg("✅ Fill Update")
+	return func(message []byte) {
+		tbm.logger.Info().Str("data", string(message)).Msg("✅ Fill Update")
 		// Parse and update fills
-		tbm.handleFillUpdate(message)
+		tbm.handleFillUpdate(string(message))
 	}
 }
 
 func (tbm *TradingBotManager) createPositionUpdateHandler() ws.OnReceive {
-	return func(message string) {
-		tbm.logger.Info().Str("data", message).Msg("📊 Position Update")
+	return func(message []byte) {
+		tbm.logger.Info().Str("data", string(message)).Msg("📊 Position Update")
 		// Parse and update positions
-		tbm.handlePositionUpdate(message)
+		tbm.handlePositionUpdate(string(message))
 	}
 }
 
 func (tbm *TradingBotManager) createAccountUpdateHandler() ws.OnReceive {
-	return func(message string) {
-		tbm.logger.Info().Str("data", message).Msg("💰 Account Update")
+	return func(message []byte) {
+		tbm.logger.Info().Str("data", string(message)).Msg("💰 Account Update")
 		// Parse and update account balance
-		tbm.handleAccountUpdate(message)
+		tbm.handleAccountUpdate(string(message))
 	}
 }
 
@@ -309,7 +309,7 @@ func (tbm *TradingBotManager) initializeMarketData() {
 func (tbm *TradingBotManager) updateMarketPrice(symbol string, price float64) {
 	tbm.marketMutex.Lock()
 	defer tbm.marketMutex.Unlock()
-	
+
 	if data, exists := tbm.marketData[symbol]; exists {
 		data.Price = price
 		data.LastUpdate = time.Now()
@@ -319,7 +319,7 @@ func (tbm *TradingBotManager) updateMarketPrice(symbol string, price float64) {
 func (tbm *TradingBotManager) updateBidAsk(symbol string, bid, ask float64) {
 	tbm.marketMutex.Lock()
 	defer tbm.marketMutex.Unlock()
-	
+
 	if data, exists := tbm.marketData[symbol]; exists {
 		data.BestBid = bid
 		data.BestAsk = ask
@@ -331,7 +331,7 @@ func (tbm *TradingBotManager) updateBidAsk(symbol string, bid, ask float64) {
 func (tbm *TradingBotManager) updateMarkPrice(symbol string, markPrice float64) {
 	tbm.marketMutex.Lock()
 	defer tbm.marketMutex.Unlock()
-	
+
 	if data, exists := tbm.marketData[symbol]; exists {
 		data.MarkPrice = markPrice
 		data.LastUpdate = time.Now()
@@ -341,7 +341,7 @@ func (tbm *TradingBotManager) updateMarkPrice(symbol string, markPrice float64) 
 func (tbm *TradingBotManager) updateFundingRate(symbol string, fundingRate float64) {
 	tbm.marketMutex.Lock()
 	defer tbm.marketMutex.Unlock()
-	
+
 	if data, exists := tbm.marketData[symbol]; exists {
 		data.FundingRate = fundingRate
 		data.LastUpdate = time.Now()
@@ -377,30 +377,30 @@ func (tbm *TradingBotManager) extractFundingRateFromMessage(message string) floa
 
 func (tbm *TradingBotManager) RunAllScenarios() {
 	tbm.logger.Info().Msg("🚀 Starting All Trading Scenarios")
-	
+
 	// Start different trading scenarios as goroutines
 	go tbm.runGridTradingScenario("BTCUSDT")
 	go tbm.runDCAScenario("ETHUSDT")
 	go tbm.runScalpingScenario("ADAUSDT")
 	go tbm.runRiskManagerScenario()
-	
+
 	// Wait a bit for scenarios to initialize
 	time.Sleep(2 * time.Second)
-	
+
 	tbm.logger.Info().Msg("✅ All trading scenarios are running")
 }
 
 // Scenario 1: Grid Trading Bot
 func (tbm *TradingBotManager) runGridTradingScenario(symbol string) {
 	tbm.logger.Info().Str("symbol", symbol).Msg("📊 Starting Grid Trading Scenario")
-	
+
 	gridLevels := 10
 	gridSpacing := 50.0 // $50 between grid levels
 	basePrice := 50000.0
-	
+
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -416,18 +416,18 @@ func (tbm *TradingBotManager) executeGridTradingLogic(symbol string, basePrice f
 	if currentPrice == 0 {
 		return
 	}
-	
+
 	tbm.logger.Info().
 		Str("symbol", symbol).
 		Float64("currentPrice", currentPrice).
 		Float64("basePrice", basePrice).
 		Msg("🔲 Grid Trading: Analyzing grid positions")
-	
+
 	// Simulate grid trading logic
-	if currentPrice < basePrice - spacing {
+	if currentPrice < basePrice-spacing {
 		tbm.logger.Info().Msg("🔲 Grid Trading: Price below grid - would place buy orders")
 		tbm.simulateOrder(symbol, "buy", currentPrice, 0.001)
-	} else if currentPrice > basePrice + spacing {
+	} else if currentPrice > basePrice+spacing {
 		tbm.logger.Info().Msg("🔲 Grid Trading: Price above grid - would place sell orders")
 		tbm.simulateOrder(symbol, "sell", currentPrice, 0.001)
 	}
@@ -436,13 +436,13 @@ func (tbm *TradingBotManager) executeGridTradingLogic(symbol string, basePrice f
 // Scenario 2: Dollar Cost Averaging (DCA) Bot
 func (tbm *TradingBotManager) runDCAScenario(symbol string) {
 	tbm.logger.Info().Str("symbol", symbol).Msg("💰 Starting DCA Scenario")
-	
+
 	dcaAmount := 100.0 // $100 per interval
 	dcaInterval := 60 * time.Second
-	
+
 	ticker := time.NewTicker(dcaInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -458,26 +458,26 @@ func (tbm *TradingBotManager) executeDCALogic(symbol string, amount float64) {
 	if currentPrice == 0 {
 		return
 	}
-	
+
 	quantity := amount / currentPrice
-	
+
 	tbm.logger.Info().
 		Str("symbol", symbol).
 		Float64("amount", amount).
 		Float64("price", currentPrice).
 		Float64("quantity", quantity).
 		Msg("💰 DCA: Executing dollar cost averaging buy")
-	
+
 	tbm.simulateOrder(symbol, "buy", currentPrice, quantity)
 }
 
 // Scenario 3: Scalping Bot
 func (tbm *TradingBotManager) runScalpingScenario(symbol string) {
 	tbm.logger.Info().Str("symbol", symbol).Msg("⚡ Starting Scalping Scenario")
-	
+
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -493,7 +493,7 @@ func (tbm *TradingBotManager) executeScalpingLogic(symbol string) {
 	if spread == 0 {
 		return
 	}
-	
+
 	// Scalp if spread is wide enough
 	minSpread := 0.5
 	if spread > minSpread {
@@ -501,7 +501,7 @@ func (tbm *TradingBotManager) executeScalpingLogic(symbol string) {
 			Str("symbol", symbol).
 			Float64("spread", spread).
 			Msg("⚡ Scalping: Wide spread detected - would place both buy and sell orders")
-		
+
 		currentPrice := tbm.getCurrentPrice(symbol)
 		tbm.simulateOrder(symbol, "buy", currentPrice-spread/4, 0.01)
 		tbm.simulateOrder(symbol, "sell", currentPrice+spread/4, 0.01)
@@ -511,10 +511,10 @@ func (tbm *TradingBotManager) executeScalpingLogic(symbol string) {
 // Scenario 4: Risk Manager
 func (tbm *TradingBotManager) runRiskManagerScenario() {
 	tbm.logger.Info().Msg("🛡️ Starting Risk Manager Scenario")
-	
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -527,13 +527,13 @@ func (tbm *TradingBotManager) runRiskManagerScenario() {
 
 func (tbm *TradingBotManager) executeRiskManagement() {
 	totalExposure := tbm.calculateTotalExposure()
-	
+
 	if totalExposure > tbm.riskLimit {
 		tbm.logger.Warn().
 			Float64("exposure", totalExposure).
 			Float64("limit", tbm.riskLimit).
 			Msg("🛡️ Risk Manager: Exposure limit exceeded - would reduce positions")
-		
+
 		tbm.simulateRiskReduction()
 	} else {
 		tbm.logger.Debug().
@@ -548,7 +548,7 @@ func (tbm *TradingBotManager) executeRiskManagement() {
 func (tbm *TradingBotManager) getCurrentPrice(symbol string) float64 {
 	tbm.marketMutex.RLock()
 	defer tbm.marketMutex.RUnlock()
-	
+
 	if data, exists := tbm.marketData[symbol]; exists {
 		return data.Price
 	}
@@ -558,7 +558,7 @@ func (tbm *TradingBotManager) getCurrentPrice(symbol string) float64 {
 func (tbm *TradingBotManager) getCurrentSpread(symbol string) float64 {
 	tbm.marketMutex.RLock()
 	defer tbm.marketMutex.RUnlock()
-	
+
 	if data, exists := tbm.marketData[symbol]; exists {
 		return data.Spread
 	}
@@ -568,7 +568,7 @@ func (tbm *TradingBotManager) getCurrentSpread(symbol string) float64 {
 func (tbm *TradingBotManager) calculateTotalExposure() float64 {
 	tbm.positionMutex.RLock()
 	defer tbm.positionMutex.RUnlock()
-	
+
 	total := 0.0
 	for _, position := range tbm.positions {
 		total += position.Size * position.AvgPrice
@@ -579,7 +579,7 @@ func (tbm *TradingBotManager) calculateTotalExposure() float64 {
 func (tbm *TradingBotManager) simulateOrder(symbol, side string, price, quantity float64) {
 	// In a real implementation, this would use the futures client to place orders
 	orderID := fmt.Sprintf("%s_%s_%d", symbol, side, time.Now().Unix())
-	
+
 	order := &Order{
 		OrderID:     orderID,
 		Symbol:      symbol,
@@ -590,12 +590,12 @@ func (tbm *TradingBotManager) simulateOrder(symbol, side string, price, quantity
 		Type:        "limit",
 		CreatedTime: time.Now(),
 	}
-	
+
 	tbm.orderMutex.Lock()
 	tbm.activeOrders[orderID] = order
 	tbm.tradesExecuted++
 	tbm.orderMutex.Unlock()
-	
+
 	tbm.logger.Info().
 		Str("orderId", orderID).
 		Str("symbol", symbol).
@@ -603,7 +603,7 @@ func (tbm *TradingBotManager) simulateOrder(symbol, side string, price, quantity
 		Float64("price", price).
 		Float64("quantity", quantity).
 		Msg("📝 SIMULATED ORDER PLACED")
-	
+
 	// Simulate position update
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -614,7 +614,7 @@ func (tbm *TradingBotManager) simulateOrder(symbol, side string, price, quantity
 func (tbm *TradingBotManager) updateSimulatedPosition(symbol, side string, quantity, price float64) {
 	tbm.positionMutex.Lock()
 	defer tbm.positionMutex.Unlock()
-	
+
 	if position, exists := tbm.positions[symbol]; exists {
 		// Update existing position
 		if side == "buy" {
@@ -630,7 +630,7 @@ func (tbm *TradingBotManager) updateSimulatedPosition(symbol, side string, quant
 		if side == "sell" {
 			size = -quantity
 		}
-		
+
 		tbm.positions[symbol] = &Position{
 			Symbol:     symbol,
 			Size:       size,
@@ -673,7 +673,7 @@ func (tbm *TradingBotManager) handleAccountUpdate(message string) {
 func (tbm *TradingBotManager) monitorMarketData() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -687,10 +687,10 @@ func (tbm *TradingBotManager) monitorMarketData() {
 func (tbm *TradingBotManager) checkMarketDataFreshness() {
 	tbm.marketMutex.RLock()
 	defer tbm.marketMutex.RUnlock()
-	
+
 	staleThreshold := 30 * time.Second
 	now := time.Now()
-	
+
 	for symbol, data := range tbm.marketData {
 		if now.Sub(data.LastUpdate) > staleThreshold {
 			tbm.logger.Warn().
@@ -706,7 +706,7 @@ func (tbm *TradingBotManager) checkMarketDataFreshness() {
 func (tbm *TradingBotManager) displayTradingDashboard() {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -721,13 +721,13 @@ func (tbm *TradingBotManager) printTradingDashboard() {
 	fmt.Println("\n" + strings.Repeat("=", 100))
 	fmt.Println("🤖 TRADING BOT SCENARIOS DASHBOARD")
 	fmt.Println(strings.Repeat("=", 100))
-	
+
 	// Market Data Section
 	fmt.Println("📊 MARKET DATA")
 	fmt.Println(strings.Repeat("-", 100))
-	fmt.Printf("%-12s %-12s %-12s %-12s %-12s %-15s\n", 
+	fmt.Printf("%-12s %-12s %-12s %-12s %-12s %-15s\n",
 		"SYMBOL", "PRICE", "BID", "ASK", "SPREAD", "LAST UPDATE")
-	
+
 	tbm.marketMutex.RLock()
 	for _, symbol := range tbm.symbols {
 		if data, exists := tbm.marketData[symbol]; exists {
@@ -742,20 +742,20 @@ func (tbm *TradingBotManager) printTradingDashboard() {
 		}
 	}
 	tbm.marketMutex.RUnlock()
-	
+
 	// Positions Section
 	fmt.Println("\n📊 SIMULATED POSITIONS")
 	fmt.Println(strings.Repeat("-", 100))
-	fmt.Printf("%-12s %-12s %-12s %-15s %-15s\n", 
+	fmt.Printf("%-12s %-12s %-12s %-15s %-15s\n",
 		"SYMBOL", "SIZE", "AVG PRICE", "UNREALIZED P&L", "LAST UPDATE")
-	
+
 	tbm.positionMutex.RLock()
 	totalPL := 0.0
 	for symbol, position := range tbm.positions {
 		currentPrice := tbm.getCurrentPrice(symbol)
 		unrealizedPL := (currentPrice - position.AvgPrice) * position.Size
 		totalPL += unrealizedPL
-		
+
 		fmt.Printf("%-12s %-12.4f $%-11.2f $%-14.2f %-15s\n",
 			symbol,
 			position.Size,
@@ -765,18 +765,18 @@ func (tbm *TradingBotManager) printTradingDashboard() {
 		)
 	}
 	tbm.positionMutex.RUnlock()
-	
+
 	// Statistics Section
 	fmt.Println("\n📈 TRADING STATISTICS")
 	fmt.Println(strings.Repeat("-", 100))
 	runtime := time.Since(tbm.startTime)
-	
+
 	fmt.Printf("Runtime:           %v\n", runtime.Truncate(time.Second))
 	fmt.Printf("Trades Executed:   %d\n", tbm.tradesExecuted)
 	fmt.Printf("Active Orders:     %d\n", len(tbm.activeOrders))
 	fmt.Printf("Total P&L:         $%.2f\n", totalPL)
 	fmt.Printf("WebSocket Status:  %s\n", tbm.getWebSocketStatus())
-	
+
 	fmt.Println(strings.Repeat("=", 100))
 }
 
@@ -824,12 +824,12 @@ func (tbm *TradingBotManager) printFinalReport() {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("📊 FINAL TRADING REPORT")
 	fmt.Println(strings.Repeat("=", 80))
-	
+
 	runtime := time.Since(tbm.startTime)
 	fmt.Printf("Total Runtime:     %v\n", runtime.Truncate(time.Second))
 	fmt.Printf("Total Trades:      %d\n", tbm.tradesExecuted)
 	fmt.Printf("Final Positions:   %d\n", len(tbm.positions))
-	
+
 	// Calculate final P&L
 	totalPL := 0.0
 	tbm.positionMutex.RLock()
@@ -839,13 +839,13 @@ func (tbm *TradingBotManager) printFinalReport() {
 		totalPL += unrealizedPL
 	}
 	tbm.positionMutex.RUnlock()
-	
+
 	fmt.Printf("Final P&L:         $%.2f\n", totalPL)
-	
+
 	if tbm.tradesExecuted > 0 {
 		avgPLPerTrade := totalPL / float64(tbm.tradesExecuted)
 		fmt.Printf("Avg P&L per Trade: $%.2f\n", avgPLPerTrade)
 	}
-	
+
 	fmt.Println(strings.Repeat("=", 80))
 }

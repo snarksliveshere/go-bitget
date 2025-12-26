@@ -237,20 +237,20 @@ func (ts *TradingSession) subscribeToPrivateChannels() {
 	ts.privateClient.SubscribeOrders(ts.productType, ts.createOrderUpdateHandler())
 
 	// Fill updates
-	ts.privateClient.SubscribeFills(ts.productType, ts.createFillUpdateHandler())
+	ts.privateClient.SubscribeFills("", ts.productType, ts.createFillUpdateHandler())
 
 	// Position updates
 	ts.privateClient.SubscribePositions(ts.productType, ts.createPositionUpdateHandler())
 
 	// Account balance updates
-	ts.privateClient.SubscribeAccount(ts.productType, ts.createAccountUpdateHandler())
+	ts.privateClient.SubscribeAccount("", ts.productType, ts.createAccountUpdateHandler())
 
 	ts.logger.Info().Msgf("✅ Subscribed to %d private channels", ts.privateClient.GetSubscriptionCount())
 }
 
 // Create handler functions for public channels
 func (ts *TradingSession) createTickerHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ts.mu.Lock()
 		defer ts.mu.Unlock()
 
@@ -267,7 +267,7 @@ func (ts *TradingSession) createTickerHandler(symbol string) ws.OnReceive {
 }
 
 func (ts *TradingSession) createOrderBookHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ts.mu.Lock()
 		defer ts.mu.Unlock()
 
@@ -282,7 +282,7 @@ func (ts *TradingSession) createOrderBookHandler(symbol string) ws.OnReceive {
 }
 
 func (ts *TradingSession) createTradeHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ts.mu.Lock()
 		defer ts.mu.Unlock()
 
@@ -296,7 +296,7 @@ func (ts *TradingSession) createTradeHandler(symbol string) ws.OnReceive {
 }
 
 func (ts *TradingSession) createMarkPriceHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ts.mu.Lock()
 		defer ts.mu.Unlock()
 
@@ -311,7 +311,7 @@ func (ts *TradingSession) createMarkPriceHandler(symbol string) ws.OnReceive {
 
 // Create handler functions for private channels
 func (ts *TradingSession) createOrderUpdateHandler() ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ts.mu.Lock()
 		defer ts.mu.Unlock()
 
@@ -334,19 +334,19 @@ func (ts *TradingSession) createOrderUpdateHandler() ws.OnReceive {
 }
 
 func (ts *TradingSession) createFillUpdateHandler() ws.OnReceive {
-	return func(message string) {
-		ts.logger.Info().Msgf("✅ Fill update: %s", message)
+	return func(message []byte) {
+		ts.logger.Info().Msgf("✅ Fill update: %s", string(message))
 	}
 }
 
 func (ts *TradingSession) createPositionUpdateHandler() ws.OnReceive {
-	return func(message string) {
-		ts.logger.Info().Msgf("📊 Position update: %s", message)
+	return func(message []byte) {
+		ts.logger.Info().Msgf("📊 Position update: %s", string(message))
 	}
 }
 
 func (ts *TradingSession) createAccountUpdateHandler() ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ts.mu.Lock()
 		defer ts.mu.Unlock()
 
@@ -364,20 +364,20 @@ func (ts *TradingSession) createAccountUpdateHandler() ws.OnReceive {
 }
 
 // Message and error handlers
-func (ts *TradingSession) publicMessageHandler(message string) {
-	ts.logger.Debug().Msgf("📝 Public: %s", message)
+func (ts *TradingSession) publicMessageHandler(message []byte) {
+	ts.logger.Debug().Msgf("📝 Public: %s", string(message))
 }
 
-func (ts *TradingSession) publicErrorHandler(message string) {
-	ts.logger.Error().Msgf("❌ Public error: %s", message)
+func (ts *TradingSession) publicErrorHandler(message []byte) {
+	ts.logger.Error().Msgf("❌ Public error: %s", string(message))
 }
 
-func (ts *TradingSession) privateMessageHandler(message string) {
-	ts.logger.Debug().Msgf("🔒 Private: %s", message)
+func (ts *TradingSession) privateMessageHandler(message []byte) {
+	ts.logger.Debug().Msgf("🔒 Private: %s", string(message))
 }
 
-func (ts *TradingSession) privateErrorHandler(message string) {
-	ts.logger.Error().Msgf("❌ Private error: %s", message)
+func (ts *TradingSession) privateErrorHandler(message []byte) {
+	ts.logger.Error().Msgf("❌ Private error: %s", string(message))
 }
 
 // monitorConnections monitors the health of both connections

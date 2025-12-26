@@ -15,7 +15,7 @@ import (
 func main() {
 	// Load credentials from .env file
 	loadEnv()
-	
+
 	// Get API credentials from environment
 	apiKey := os.Getenv("BITGET_API_KEY")
 	secretKey := os.Getenv("BITGET_SECRET_KEY")
@@ -27,9 +27,9 @@ func main() {
 
 	fmt.Println("🚀 Testing Go-Bitget Futures SDK...")
 	fmt.Printf("📋 Using demo API key: %s...\n", apiKey[:10])
-	
+
 	// Create futures client
-	client := futures.NewClient(apiKey, secretKey, passphrase)
+	client := futures.NewClient(apiKey, secretKey, passphrase, false)
 	ctx := context.Background()
 
 	// Test 1: Get single ticker
@@ -59,7 +59,7 @@ func main() {
 		fmt.Printf("  ❌ All tickers request failed: %v\n", err)
 	} else {
 		fmt.Printf("  ✅ Retrieved %d tickers successfully\n", len(tickers))
-		
+
 		// Show first 3 tickers
 		fmt.Println("  🎯 Sample tickers:")
 		for i, t := range tickers {
@@ -86,7 +86,7 @@ func main() {
 		fmt.Printf("  ✅ Retrieved %d candlesticks (1h intervals)\n", len(candles))
 		if len(candles) > 0 {
 			latest := candles[len(candles)-1]
-			fmt.Printf("  📊 Latest candle - Open: $%.2f, High: $%.2f, Low: $%.2f, Close: $%.2f\n", 
+			fmt.Printf("  📊 Latest candle - Open: $%.2f, High: $%.2f, Low: $%.2f, Close: $%.2f\n",
 				latest.Open, latest.High, latest.Low, latest.Close)
 		}
 	}

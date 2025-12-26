@@ -75,71 +75,71 @@ type ErrorHandlingManager struct {
 	// WebSocket clients
 	publicClient  *ws.BaseWsClient
 	privateClient *ws.BaseWsClient
-	
+
 	// State management
-	publicState    ConnectionState
-	privateState   ConnectionState
-	stateMutex     sync.RWMutex
-	
+	publicState  ConnectionState
+	privateState ConnectionState
+	stateMutex   sync.RWMutex
+
 	// Error tracking
-	errorEvents    []ErrorEvent
-	errorMutex     sync.RWMutex
-	errorCount     map[ErrorType]int64
-	lastErrorTime  map[ErrorType]time.Time
-	
+	errorEvents   []ErrorEvent
+	errorMutex    sync.RWMutex
+	errorCount    map[ErrorType]int64
+	lastErrorTime map[ErrorType]time.Time
+
 	// Recovery configuration
-	strategies     map[ErrorType]RecoveryStrategy
-	
+	strategies map[ErrorType]RecoveryStrategy
+
 	// Subscription management
-	subscriptions  map[string]SubscriptionInfo
+	subscriptions map[string]SubscriptionInfo
 	subMutex      sync.RWMutex
-	
+
 	// Context and cancellation
-	ctx           context.Context
-	cancel        context.CancelFunc
-	
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	// Logging
-	logger        zerolog.Logger
-	
+	logger zerolog.Logger
+
 	// Statistics
-	reconnectCount     int64
-	recoveryCount      int64
-	dataLossEvents     int64
-	uptimeStart        time.Time
+	reconnectCount int64
+	recoveryCount  int64
+	dataLossEvents int64
+	uptimeStart    time.Time
 }
 
 // SubscriptionInfo holds subscription details for recovery
 type SubscriptionInfo struct {
-	Channel     string        `json:"channel"`
-	Symbol      string        `json:"symbol"`
-	ProductType string        `json:"productType"`
-	Timeframe   string        `json:"timeframe,omitempty"`
-	Handler     ws.OnReceive  `json:"-"`
-	LastMessage time.Time     `json:"lastMessage"`
+	Channel      string       `json:"channel"`
+	Symbol       string       `json:"symbol"`
+	ProductType  string       `json:"productType"`
+	Timeframe    string       `json:"timeframe,omitempty"`
+	Handler      ws.OnReceive `json:"-"`
+	LastMessage  time.Time    `json:"lastMessage"`
 	MessageCount int64        `json:"messageCount"`
-	IsPrivate   bool          `json:"isPrivate"`
+	IsPrivate    bool         `json:"isPrivate"`
 }
 
 // NewErrorHandlingManager creates a new error handling manager
 func NewErrorHandlingManager(logger zerolog.Logger) *ErrorHandlingManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	manager := &ErrorHandlingManager{
-		publicState:    StateDisconnected,
-		privateState:   StateDisconnected,
-		errorEvents:    make([]ErrorEvent, 0, 1000),
-		errorCount:     make(map[ErrorType]int64),
-		lastErrorTime:  make(map[ErrorType]time.Time),
-		subscriptions:  make(map[string]SubscriptionInfo),
+		publicState:   StateDisconnected,
+		privateState:  StateDisconnected,
+		errorEvents:   make([]ErrorEvent, 0, 1000),
+		errorCount:    make(map[ErrorType]int64),
+		lastErrorTime: make(map[ErrorType]time.Time),
+		subscriptions: make(map[string]SubscriptionInfo),
 		ctx:           ctx,
 		cancel:        cancel,
 		logger:        logger,
 		uptimeStart:   time.Now(),
 	}
-	
+
 	// Initialize recovery strategies
 	manager.initializeRecoveryStrategies()
-	
+
 	return manager
 }
 
@@ -263,27 +263,27 @@ func (ehm *ErrorHandlingManager) initializeRecoveryStrategies() {
 
 func (ehm *ErrorHandlingManager) connectPublicWithRetry() error {
 	ehm.setPublicState(StateConnecting)
-	
+
 	strategy := ehm.strategies[ErrorTypeConnection]
 	var lastErr error
-	
+
 	for attempt := 0; attempt < strategy.MaxRetries; attempt++ {
 		ehm.logger.Info().
 			Int("attempt", attempt+1).
 			Int("maxAttempts", strategy.MaxRetries).
 			Msg("🔌 Attempting public WebSocket connection")
-		
+
 		if err := ehm.connectPublic(); err != nil {
 			lastErr = err
 			ehm.recordError(ErrorTypeConnection, err.Error(), "", "", true)
-			
+
 			if attempt < strategy.MaxRetries-1 {
 				delay := ehm.calculateBackoffDelay(strategy, attempt)
 				ehm.logger.Warn().
 					Err(err).
 					Dur("delay", delay).
 					Msg("🔄 Connection failed, retrying...")
-				
+
 				select {
 				case <-time.After(delay):
 					continue
@@ -298,7 +298,7 @@ func (ehm *ErrorHandlingManager) connectPublicWithRetry() error {
 			return nil
 		}
 	}
-	
+
 	ehm.setPublicState(StateError)
 	return fmt.Errorf("failed to connect after %d attempts: %w", strategy.MaxRetries, lastErr)
 }
@@ -309,19 +309,19 @@ func (ehm *ErrorHandlingManager) connectPublic() error {
 		"wss://ws.bitget.com/v2/ws/public",
 		"",
 	)
-	
+
 	// Set enhanced error handlers
 	ehm.publicClient.SetListener(ehm.createMessageHandler(false), ehm.createErrorHandler(false))
-	
+
 	ehm.publicClient.Connect()
 	ehm.publicClient.ConnectWebSocket()
 	ehm.publicClient.StartReadLoop()
-	
+
 	// Wait for connection with timeout
 	timeout := time.After(10 * time.Second)
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-timeout:
@@ -339,25 +339,25 @@ func (ehm *ErrorHandlingManager) connectPrivateWithRetry() error {
 	apiKey := os.Getenv("BITGET_API_KEY")
 	secretKey := os.Getenv("BITGET_SECRET_KEY")
 	passphrase := os.Getenv("BITGET_PASSPHRASE")
-	
+
 	if apiKey == "" || secretKey == "" || passphrase == "" {
 		return fmt.Errorf("missing API credentials")
 	}
-	
+
 	ehm.setPrivateState(StateConnecting)
-	
+
 	strategy := ehm.strategies[ErrorTypeAuthentication]
 	var lastErr error
-	
+
 	for attempt := 0; attempt < strategy.MaxRetries; attempt++ {
 		ehm.logger.Info().
 			Int("attempt", attempt+1).
 			Msg("🔐 Attempting private WebSocket connection")
-		
+
 		if err := ehm.connectPrivate(apiKey, secretKey, passphrase); err != nil {
 			lastErr = err
 			ehm.recordError(ErrorTypeAuthentication, err.Error(), "", "", true)
-			
+
 			if attempt < strategy.MaxRetries-1 {
 				delay := ehm.calculateBackoffDelay(strategy, attempt)
 				time.Sleep(delay)
@@ -369,7 +369,7 @@ func (ehm *ErrorHandlingManager) connectPrivateWithRetry() error {
 			return nil
 		}
 	}
-	
+
 	ehm.setPrivateState(StateError)
 	return fmt.Errorf("failed to authenticate after %d attempts: %w", strategy.MaxRetries, lastErr)
 }
@@ -380,27 +380,27 @@ func (ehm *ErrorHandlingManager) connectPrivate(apiKey, secretKey, passphrase st
 		"wss://ws.bitget.com/v2/ws/private",
 		secretKey,
 	)
-	
+
 	ehm.privateClient.SetListener(ehm.createMessageHandler(true), ehm.createErrorHandler(true))
-	
+
 	ehm.privateClient.Connect()
 	ehm.privateClient.ConnectWebSocket()
 	ehm.privateClient.StartReadLoop()
-	
+
 	// Wait for connection
 	time.Sleep(2 * time.Second)
 	if !ehm.privateClient.IsConnected() {
 		return errors.New("failed to connect")
 	}
-	
+
 	ehm.setPrivateState(StateAuthenticating)
 	ehm.privateClient.Login(apiKey, passphrase, common.SHA256)
-	
+
 	// Wait for authentication
 	timeout := time.After(10 * time.Second)
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-timeout:
@@ -417,34 +417,34 @@ func (ehm *ErrorHandlingManager) connectPrivate(apiKey, secretKey, passphrase st
 // Message and Error Handlers
 
 func (ehm *ErrorHandlingManager) createMessageHandler(isPrivate bool) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		// Validate message format
 		if err := ehm.validateMessage(message); err != nil {
 			ehm.recordError(ErrorTypeParsing, err.Error(), "", "", false)
 			return
 		}
-		
+
 		// Update subscription statistics
 		ehm.updateSubscriptionStats(message, isPrivate)
-		
+
 		// Process message
 		ehm.processMessage(message, isPrivate)
 	}
 }
 
 func (ehm *ErrorHandlingManager) createErrorHandler(isPrivate bool) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		ehm.logger.Error().
 			Bool("private", isPrivate).
-			Str("error", message).
+			Str("error", string(message)).
 			Msg("❌ WebSocket Error")
-		
+
 		// Analyze error message and determine type
-		errorType := ehm.analyzeErrorMessage(message)
-		
+		errorType := ehm.analyzeErrorMessage(string(message))
+
 		// Record error
-		ehm.recordError(errorType, message, "", "", true)
-		
+		ehm.recordError(errorType, string(message), "", "", true)
+
 		// Trigger recovery if needed
 		if ehm.shouldTriggerRecovery(errorType, message) {
 			go ehm.triggerRecovery(errorType, isPrivate)
@@ -456,7 +456,7 @@ func (ehm *ErrorHandlingManager) createErrorHandler(isPrivate bool) ws.OnReceive
 
 func (ehm *ErrorHandlingManager) analyzeErrorMessage(message string) ErrorType {
 	messageLower := strings.ToLower(message)
-	
+
 	switch {
 	case strings.Contains(messageLower, "connection") || strings.Contains(messageLower, "disconnect"):
 		return ErrorTypeConnection
@@ -475,25 +475,25 @@ func (ehm *ErrorHandlingManager) analyzeErrorMessage(message string) ErrorType {
 	}
 }
 
-func (ehm *ErrorHandlingManager) validateMessage(message string) error {
+func (ehm *ErrorHandlingManager) validateMessage(message []byte) error {
 	// Basic JSON validation
-	if !json.Valid([]byte(message)) {
+	if !json.Valid(message) {
 		return fmt.Errorf("invalid JSON format")
 	}
-	
+
 	// Check message structure
 	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(message), &data); err != nil {
+	if err := json.Unmarshal(message, &data); err != nil {
 		return fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	
+
 	// Validate required fields (simplified)
 	if _, exists := data["event"]; !exists {
 		if _, exists := data["action"]; !exists {
 			return fmt.Errorf("missing event/action field")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -502,7 +502,7 @@ func (ehm *ErrorHandlingManager) validateMessage(message string) error {
 func (ehm *ErrorHandlingManager) setupPublicSubscriptions() {
 	symbols := []string{"BTCUSDT", "ETHUSDT", "ADAUSDT"}
 	productType := "USDT-FUTURES"
-	
+
 	for _, symbol := range symbols {
 		// Ticker subscription
 		ehm.subscribeWithErrorHandling(
@@ -510,44 +510,44 @@ func (ehm *ErrorHandlingManager) setupPublicSubscriptions() {
 			ehm.createSubscriptionHandler(symbol, "ticker", false),
 			false,
 		)
-		
-		// Candlestick subscription  
+
+		// Candlestick subscription
 		ehm.subscribeWithErrorHandling(
 			symbol, "candle1m", productType, ws.Timeframe1m,
 			ehm.createSubscriptionHandler(symbol, "candle1m", false),
 			false,
 		)
-		
+
 		// Order book subscription
 		ehm.subscribeWithErrorHandling(
 			symbol, "books5", productType, "",
 			ehm.createSubscriptionHandler(symbol, "books5", false),
 			false,
 		)
-		
+
 		time.Sleep(300 * time.Millisecond)
 	}
 }
 
 func (ehm *ErrorHandlingManager) setupPrivateSubscriptions() {
 	productType := "USDT-FUTURES"
-	
+
 	channels := []string{"orders", "fill", "positions", "account"}
-	
+
 	for _, channel := range channels {
 		ehm.subscribeWithErrorHandling(
 			"", channel, productType, "",
 			ehm.createSubscriptionHandler("", channel, true),
 			true,
 		)
-		
+
 		time.Sleep(200 * time.Millisecond)
 	}
 }
 
 func (ehm *ErrorHandlingManager) subscribeWithErrorHandling(symbol, channel, productType, timeframe string, handler ws.OnReceive, isPrivate bool) {
 	subscriptionKey := fmt.Sprintf("%s:%s:%s", channel, symbol, productType)
-	
+
 	// Store subscription info for recovery
 	ehm.subMutex.Lock()
 	ehm.subscriptions[subscriptionKey] = SubscriptionInfo{
@@ -560,13 +560,13 @@ func (ehm *ErrorHandlingManager) subscribeWithErrorHandling(symbol, channel, pro
 		IsPrivate:   isPrivate,
 	}
 	ehm.subMutex.Unlock()
-	
+
 	// Attempt subscription with retry
 	strategy := ehm.strategies[ErrorTypeSubscription]
-	
+
 	for attempt := 0; attempt < strategy.MaxRetries; attempt++ {
 		var err error
-		
+
 		if isPrivate && ehm.privateClient != nil {
 			err = ehm.subscribePrivateChannel(channel, productType, handler)
 		} else if !isPrivate && ehm.publicClient != nil {
@@ -574,10 +574,10 @@ func (ehm *ErrorHandlingManager) subscribeWithErrorHandling(symbol, channel, pro
 		} else {
 			err = fmt.Errorf("client not available")
 		}
-		
+
 		if err != nil {
 			ehm.recordError(ErrorTypeSubscription, err.Error(), symbol, channel, true)
-			
+
 			if attempt < strategy.MaxRetries-1 {
 				delay := ehm.calculateBackoffDelay(strategy, attempt)
 				time.Sleep(delay)
@@ -591,7 +591,7 @@ func (ehm *ErrorHandlingManager) subscribeWithErrorHandling(symbol, channel, pro
 			return
 		}
 	}
-	
+
 	ehm.logger.Error().
 		Str("channel", channel).
 		Str("symbol", symbol).
@@ -619,7 +619,7 @@ func (ehm *ErrorHandlingManager) subscribePublicChannel(channel, symbol, product
 	default:
 		return fmt.Errorf("unknown public channel: %s", channel)
 	}
-	
+
 	return nil
 }
 
@@ -628,24 +628,24 @@ func (ehm *ErrorHandlingManager) subscribePrivateChannel(channel, productType st
 	case "orders":
 		ehm.privateClient.SubscribeOrders(productType, handler)
 	case "fill":
-		ehm.privateClient.SubscribeFills(productType, handler)
+		ehm.privateClient.SubscribeFills("", productType, handler)
 	case "positions":
 		ehm.privateClient.SubscribePositions(productType, handler)
 	case "account":
-		ehm.privateClient.SubscribeAccount(productType, handler)
+		ehm.privateClient.SubscribeAccount("", productType, handler)
 	case "plan-order":
 		ehm.privateClient.SubscribePlanOrders(productType, handler)
 	default:
 		return fmt.Errorf("unknown private channel: %s", channel)
 	}
-	
+
 	return nil
 }
 
 func (ehm *ErrorHandlingManager) createSubscriptionHandler(symbol, channel string, isPrivate bool) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		subscriptionKey := fmt.Sprintf("%s:%s:USDT-FUTURES", channel, symbol)
-		
+
 		ehm.subMutex.Lock()
 		if sub, exists := ehm.subscriptions[subscriptionKey]; exists {
 			sub.LastMessage = time.Now()
@@ -653,55 +653,55 @@ func (ehm *ErrorHandlingManager) createSubscriptionHandler(symbol, channel strin
 			ehm.subscriptions[subscriptionKey] = sub
 		}
 		ehm.subMutex.Unlock()
-		
+
 		ehm.logger.Debug().
 			Str("channel", channel).
 			Str("symbol", symbol).
 			Bool("private", isPrivate).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("📨 Message received")
 	}
 }
 
 // Recovery System
 
-func (ehm *ErrorHandlingManager) shouldTriggerRecovery(errorType ErrorType, message string) bool {
+func (ehm *ErrorHandlingManager) shouldTriggerRecovery(errorType ErrorType, message []byte) bool {
 	strategy := ehm.strategies[errorType]
-	
+
 	if !strategy.AutoReconnect {
 		return false
 	}
-	
+
 	// Check if we're not already in recovery
 	ehm.stateMutex.RLock()
 	publicRecovering := ehm.publicState == StateReconnecting
 	privateRecovering := ehm.privateState == StateReconnecting
 	ehm.stateMutex.RUnlock()
-	
+
 	if publicRecovering || privateRecovering {
 		return false
 	}
-	
+
 	// Check error frequency to avoid recovery loops
 	ehm.errorMutex.RLock()
 	lastErrorTime, exists := ehm.lastErrorTime[errorType]
 	ehm.errorMutex.RUnlock()
-	
+
 	if exists && time.Since(lastErrorTime) < 5*time.Second {
 		return false // Too frequent, avoid recovery loop
 	}
-	
+
 	return true
 }
 
 func (ehm *ErrorHandlingManager) triggerRecovery(errorType ErrorType, isPrivate bool) {
 	atomic.AddInt64(&ehm.recoveryCount, 1)
-	
+
 	ehm.logger.Warn().
 		Str("errorType", ehm.getErrorTypeName(errorType)).
 		Bool("private", isPrivate).
 		Msg("🔄 Triggering recovery")
-	
+
 	switch errorType {
 	case ErrorTypeConnection:
 		if isPrivate {
@@ -720,13 +720,13 @@ func (ehm *ErrorHandlingManager) triggerRecovery(errorType ErrorType, isPrivate 
 
 func (ehm *ErrorHandlingManager) recoverPublicConnection() {
 	ehm.setPublicState(StateReconnecting)
-	
+
 	if ehm.publicClient != nil {
 		ehm.publicClient.Close()
 	}
-	
+
 	time.Sleep(2 * time.Second)
-	
+
 	if err := ehm.connectPublicWithRetry(); err != nil {
 		ehm.logger.Error().Err(err).Msg("❌ Public connection recovery failed")
 		ehm.setPublicState(StateError)
@@ -735,13 +735,13 @@ func (ehm *ErrorHandlingManager) recoverPublicConnection() {
 
 func (ehm *ErrorHandlingManager) recoverPrivateConnection() {
 	ehm.setPrivateState(StateReconnecting)
-	
+
 	if ehm.privateClient != nil {
 		ehm.privateClient.Close()
 	}
-	
+
 	time.Sleep(2 * time.Second)
-	
+
 	if err := ehm.connectPrivateWithRetry(); err != nil {
 		ehm.logger.Error().Err(err).Msg("❌ Private connection recovery failed")
 		ehm.setPrivateState(StateError)
@@ -750,7 +750,7 @@ func (ehm *ErrorHandlingManager) recoverPrivateConnection() {
 
 func (ehm *ErrorHandlingManager) recoverSubscriptions(isPrivate bool) {
 	ehm.logger.Info().Bool("private", isPrivate).Msg("🔄 Recovering subscriptions")
-	
+
 	ehm.subMutex.RLock()
 	subscriptionsToRecover := make([]SubscriptionInfo, 0)
 	for _, sub := range ehm.subscriptions {
@@ -759,7 +759,7 @@ func (ehm *ErrorHandlingManager) recoverSubscriptions(isPrivate bool) {
 		}
 	}
 	ehm.subMutex.RUnlock()
-	
+
 	for _, sub := range subscriptionsToRecover {
 		ehm.subscribeWithErrorHandling(
 			sub.Symbol,
@@ -799,7 +799,7 @@ func (ehm *ErrorHandlingManager) calculateBackoffDelay(strategy RecoveryStrategy
 func (ehm *ErrorHandlingManager) recordError(errorType ErrorType, message, symbol, channel string, recoverable bool) {
 	ehm.errorMutex.Lock()
 	defer ehm.errorMutex.Unlock()
-	
+
 	event := ErrorEvent{
 		Type:        errorType,
 		Message:     message,
@@ -809,13 +809,13 @@ func (ehm *ErrorHandlingManager) recordError(errorType ErrorType, message, symbo
 		Recoverable: recoverable,
 		RetryCount:  0,
 	}
-	
+
 	// Store error event (keep only last 1000)
 	ehm.errorEvents = append(ehm.errorEvents, event)
 	if len(ehm.errorEvents) > 1000 {
 		ehm.errorEvents = ehm.errorEvents[1:]
 	}
-	
+
 	// Update counters
 	ehm.errorCount[errorType]++
 	ehm.lastErrorTime[errorType] = time.Now()
@@ -829,9 +829,9 @@ func (ehm *ErrorHandlingManager) getErrorTypeName(errorType ErrorType) string {
 		ErrorTypeParsing:        "Parsing",
 		ErrorTypeRateLimit:      "RateLimit",
 		ErrorTypeNetwork:        "Network",
-		ErrorTypeAPIError:      "APIError",
+		ErrorTypeAPIError:       "APIError",
 	}
-	
+
 	if name, exists := names[errorType]; exists {
 		return name
 	}
@@ -866,9 +866,9 @@ func (ehm *ErrorHandlingManager) getConnectionStateString(state ConnectionState)
 		StateAuthenticating: "🔐 Authenticating",
 		StateAuthenticated:  "✅ Authenticated",
 		StateReconnecting:   "🔄 Reconnecting",
-		StateError:         "❌ Error",
+		StateError:          "❌ Error",
 	}
-	
+
 	if str, exists := states[state]; exists {
 		return str
 	}
@@ -879,7 +879,7 @@ func (ehm *ErrorHandlingManager) getConnectionStateString(state ConnectionState)
 
 func (ehm *ErrorHandlingManager) StartMonitoring() {
 	ehm.logger.Info().Msg("🔍 Starting monitoring systems")
-	
+
 	// All monitoring goroutines are already started in Initialize()
 	ehm.logger.Info().Msg("✅ All monitoring systems active")
 }
@@ -887,7 +887,7 @@ func (ehm *ErrorHandlingManager) StartMonitoring() {
 func (ehm *ErrorHandlingManager) monitorConnections() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -900,7 +900,7 @@ func (ehm *ErrorHandlingManager) monitorConnections() {
 
 func (ehm *ErrorHandlingManager) checkConnectionHealth() {
 	publicState, privateState := ehm.getConnectionStates()
-	
+
 	// Check public connection
 	if ehm.publicClient != nil && publicState == StateConnected {
 		if !ehm.publicClient.IsConnected() {
@@ -909,7 +909,7 @@ func (ehm *ErrorHandlingManager) checkConnectionHealth() {
 			go ehm.triggerRecovery(ErrorTypeConnection, false)
 		}
 	}
-	
+
 	// Check private connection
 	if ehm.privateClient != nil && privateState == StateAuthenticated {
 		if !ehm.privateClient.IsConnected() || !ehm.privateClient.IsLoggedIn() {
@@ -923,7 +923,7 @@ func (ehm *ErrorHandlingManager) checkConnectionHealth() {
 func (ehm *ErrorHandlingManager) monitorSubscriptions() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -937,7 +937,7 @@ func (ehm *ErrorHandlingManager) monitorSubscriptions() {
 func (ehm *ErrorHandlingManager) checkSubscriptionHealth() {
 	staleThreshold := 60 * time.Second
 	now := time.Now()
-	
+
 	ehm.subMutex.RLock()
 	for key, sub := range ehm.subscriptions {
 		if now.Sub(sub.LastMessage) > staleThreshold && sub.MessageCount > 0 {
@@ -945,7 +945,7 @@ func (ehm *ErrorHandlingManager) checkSubscriptionHealth() {
 				Str("subscription", key).
 				Time("lastMessage", sub.LastMessage).
 				Msg("🔍 Stale subscription detected")
-			
+
 			ehm.recordError(ErrorTypeSubscription, "Stale subscription", sub.Symbol, sub.Channel, true)
 			atomic.AddInt64(&ehm.dataLossEvents, 1)
 		}
@@ -956,7 +956,7 @@ func (ehm *ErrorHandlingManager) checkSubscriptionHealth() {
 func (ehm *ErrorHandlingManager) monitorErrors() {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -970,12 +970,12 @@ func (ehm *ErrorHandlingManager) monitorErrors() {
 func (ehm *ErrorHandlingManager) analyzeErrorPatterns() {
 	ehm.errorMutex.RLock()
 	defer ehm.errorMutex.RUnlock()
-	
+
 	// Check for error spikes
 	recentThreshold := 5 * time.Minute
 	now := time.Now()
 	recentErrors := 0
-	
+
 	for i := len(ehm.errorEvents) - 1; i >= 0; i-- {
 		if now.Sub(ehm.errorEvents[i].Timestamp) <= recentThreshold {
 			recentErrors++
@@ -983,7 +983,7 @@ func (ehm *ErrorHandlingManager) analyzeErrorPatterns() {
 			break
 		}
 	}
-	
+
 	if recentErrors > 20 {
 		ehm.logger.Warn().
 			Int("recentErrors", recentErrors).
@@ -993,14 +993,14 @@ func (ehm *ErrorHandlingManager) analyzeErrorPatterns() {
 
 // Processing and Statistics
 
-func (ehm *ErrorHandlingManager) processMessage(message string, isPrivate bool) {
+func (ehm *ErrorHandlingManager) processMessage(message []byte, isPrivate bool) {
 	// Process the message (placeholder for actual business logic)
 	ehm.logger.Debug().
 		Bool("private", isPrivate).
 		Msg("📨 Processing message")
 }
 
-func (ehm *ErrorHandlingManager) updateSubscriptionStats(message string, isPrivate bool) {
+func (ehm *ErrorHandlingManager) updateSubscriptionStats(message []byte, isPrivate bool) {
 	// Update message count for relevant subscription
 	// This is a simplified implementation
 }
@@ -1010,7 +1010,7 @@ func (ehm *ErrorHandlingManager) updateSubscriptionStats(message string, isPriva
 func (ehm *ErrorHandlingManager) displayErrorDashboard() {
 	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -1025,40 +1025,40 @@ func (ehm *ErrorHandlingManager) printErrorDashboard() {
 	fmt.Println("\n" + strings.Repeat("=", 100))
 	fmt.Println("🛡️ ERROR HANDLING & RECOVERY DASHBOARD")
 	fmt.Println(strings.Repeat("=", 100))
-	
+
 	// Connection Status
 	publicState, privateState := ehm.getConnectionStates()
 	fmt.Printf("🌍 Public WebSocket:   %s\n", ehm.getConnectionStateString(publicState))
 	fmt.Printf("🔒 Private WebSocket:  %s\n", ehm.getConnectionStateString(privateState))
-	
+
 	// Subscription Status
 	ehm.subMutex.RLock()
 	activeSubscriptions := len(ehm.subscriptions)
 	healthySubscriptions := 0
 	staleThreshold := 60 * time.Second
 	now := time.Now()
-	
+
 	for _, sub := range ehm.subscriptions {
 		if now.Sub(sub.LastMessage) <= staleThreshold || sub.MessageCount == 0 {
 			healthySubscriptions++
 		}
 	}
 	ehm.subMutex.RUnlock()
-	
+
 	fmt.Printf("📡 Subscriptions:      %d active, %d healthy\n", activeSubscriptions, healthySubscriptions)
-	
+
 	// Error Statistics
 	ehm.errorMutex.RLock()
 	totalErrors := int64(0)
 	for _, count := range ehm.errorCount {
 		totalErrors += count
 	}
-	
+
 	fmt.Printf("❌ Total Errors:       %d\n", totalErrors)
 	fmt.Printf("🔄 Recovery Attempts:  %d\n", atomic.LoadInt64(&ehm.recoveryCount))
 	fmt.Printf("🔌 Reconnections:      %d\n", atomic.LoadInt64(&ehm.reconnectCount))
 	fmt.Printf("📉 Data Loss Events:   %d\n", atomic.LoadInt64(&ehm.dataLossEvents))
-	
+
 	// Error breakdown
 	fmt.Println("\n📊 ERROR BREAKDOWN:")
 	for errorType, count := range ehm.errorCount {
@@ -1067,18 +1067,18 @@ func (ehm *ErrorHandlingManager) printErrorDashboard() {
 		}
 	}
 	ehm.errorMutex.RUnlock()
-	
+
 	// Uptime
 	uptime := time.Since(ehm.uptimeStart)
 	fmt.Printf("\n⏱️  Total Uptime:      %v\n", uptime.Truncate(time.Second))
-	
+
 	// Recent errors
 	fmt.Println("\n🔍 RECENT ERRORS (Last 5):")
 	recentCount := 5
 	if len(ehm.errorEvents) < recentCount {
 		recentCount = len(ehm.errorEvents)
 	}
-	
+
 	for i := len(ehm.errorEvents) - recentCount; i < len(ehm.errorEvents); i++ {
 		event := ehm.errorEvents[i]
 		fmt.Printf("   %s: %s [%s] %s\n",
@@ -1088,7 +1088,7 @@ func (ehm *ErrorHandlingManager) printErrorDashboard() {
 			event.Message,
 		)
 	}
-	
+
 	fmt.Println(strings.Repeat("=", 100))
 }
 
@@ -1097,16 +1097,16 @@ func (ehm *ErrorHandlingManager) printErrorDashboard() {
 func (ehm *ErrorHandlingManager) simulateErrorScenarios() {
 	// Wait for initial setup
 	time.Sleep(10 * time.Second)
-	
+
 	ehm.logger.Info().Msg("🎭 Starting error simulation scenarios")
-	
+
 	scenarios := []func(){
 		ehm.simulateConnectionError,
 		ehm.simulateSubscriptionError,
 		ehm.simulateParsingError,
 		ehm.simulateRateLimitError,
 	}
-	
+
 	for _, scenario := range scenarios {
 		time.Sleep(30 * time.Second)
 		scenario()
@@ -1169,25 +1169,25 @@ func (ehm *ErrorHandlingManager) printFinalErrorReport() {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("📊 FINAL ERROR HANDLING REPORT")
 	fmt.Println(strings.Repeat("=", 80))
-	
+
 	uptime := time.Since(ehm.uptimeStart)
-	
+
 	ehm.errorMutex.RLock()
 	totalErrors := int64(0)
 	for _, count := range ehm.errorCount {
 		totalErrors += count
 	}
 	ehm.errorMutex.RUnlock()
-	
+
 	fmt.Printf("Total Runtime:         %v\n", uptime.Truncate(time.Second))
 	fmt.Printf("Total Errors:          %d\n", totalErrors)
 	fmt.Printf("Recovery Attempts:     %d\n", atomic.LoadInt64(&ehm.recoveryCount))
 	fmt.Printf("Successful Reconnects: %d\n", atomic.LoadInt64(&ehm.reconnectCount))
 	fmt.Printf("Data Loss Events:      %d\n", atomic.LoadInt64(&ehm.dataLossEvents))
-	
+
 	if totalErrors > 0 {
 		fmt.Printf("Average MTBF:          %v\n", time.Duration(uptime.Nanoseconds()/totalErrors))
 	}
-	
+
 	fmt.Println(strings.Repeat("=", 80))
 }

@@ -11,12 +11,13 @@ package ws
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/khanbekov/go-bitget/common"
 	"github.com/khanbekov/go-bitget/common/types"
 	"github.com/rs/zerolog"
-	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/robfig/cron/v3"
@@ -24,7 +25,7 @@ import (
 
 // OnReceive is a callback function type for handling incoming WebSocket messages.
 // It receives the raw message string from the WebSocket connection.
-type OnReceive func(message string)
+type OnReceive func(msg []byte)
 
 // loginCredentials stores authentication details for re-authentication after reconnection
 type loginCredentials struct {
@@ -486,7 +487,7 @@ func (c *BaseWsClient) ReadLoop() {
 		if e {
 			code, ok := v.(float64)
 			if !ok || code != 0 {
-				c.errorListener(message)
+				c.errorListener(buf)
 				continue
 			}
 		}
@@ -501,7 +502,7 @@ func (c *BaseWsClient) ReadLoop() {
 		v, e = jsonMap["data"]
 		if e {
 			listener := c.GetListener(jsonMap["arg"])
-			listener(message)
+			listener(buf)
 			continue
 		}
 	}

@@ -110,28 +110,28 @@ func subscribeToPrivateChannels(client *ws.BaseWsClient) {
 	fmt.Printf("📡 Subscribing to private channels for %s...\n", productType)
 
 	// 1. Subscribe to order updates
-	client.SubscribeOrders(productType, func(message string) {
-		fmt.Printf("📋 ORDER UPDATE: %s\n", message)
+	client.SubscribeOrders(productType, func(message []byte) {
+		fmt.Printf("📋 ORDER UPDATE: %s\n", string(message))
 	})
 
 	// 2. Subscribe to fill/execution updates
-	client.SubscribeFills(productType, func(message string) {
-		fmt.Printf("✅ FILL UPDATE: %s\n", message)
+	client.SubscribeFills("", productType, func(message []byte) {
+		fmt.Printf("✅ FILL UPDATE: %s\n", string(message))
 	})
 
 	// 3. Subscribe to position updates
-	client.SubscribePositions(productType, func(message string) {
-		fmt.Printf("📊 POSITION UPDATE: %s\n", message)
+	client.SubscribePositions(productType, func(message []byte) {
+		fmt.Printf("📊 POSITION UPDATE: %s\n", string(message))
 	})
 
 	// 4. Subscribe to account balance updates
-	client.SubscribeAccount(productType, func(message string) {
-		fmt.Printf("💰 ACCOUNT UPDATE: %s\n", message)
+	client.SubscribeAccount("", productType, func(message []byte) {
+		fmt.Printf("💰 ACCOUNT UPDATE: %s\n", string(message))
 	})
 
 	// 5. Subscribe to plan order (trigger order) updates
-	client.SubscribePlanOrders(productType, func(message string) {
-		fmt.Printf("⚡ PLAN ORDER UPDATE: %s\n", message)
+	client.SubscribePlanOrders(productType, func(message []byte) {
+		fmt.Printf("⚡ PLAN ORDER UPDATE: %s\n", string(message))
 	})
 
 	fmt.Printf("✅ Subscribed to %d private channels\n", client.GetSubscriptionCount())
@@ -165,12 +165,12 @@ func displaySubscriptionStatus(client *ws.BaseWsClient, productType string) {
 	fmt.Println(strings.Repeat("=", 60))
 }
 
-func defaultMessageHandler(message string) {
+func defaultMessageHandler(message []byte) {
 	// Handle general messages (login confirmations, etc.)
 	fmt.Printf("ℹ️  SYSTEM: %s\n", message)
 }
 
-func errorMessageHandler(message string) {
+func errorMessageHandler(message []byte) {
 	// Handle error messages
 	fmt.Printf("❌ ERROR: %s\n", message)
 }
