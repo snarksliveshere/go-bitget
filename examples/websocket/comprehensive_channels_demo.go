@@ -23,17 +23,17 @@ import (
 
 // MessageStats tracks statistics for different message types
 type MessageStats struct {
-	Ticker      int64 `json:"ticker"`
-	Candle      int64 `json:"candle"`
-	OrderBook   int64 `json:"orderbook"`
-	Trade       int64 `json:"trade"`
-	MarkPrice   int64 `json:"mark_price"`
-	Funding     int64 `json:"funding"`
-	Orders      int64 `json:"orders"`
-	Fills       int64 `json:"fills"`
-	Positions   int64 `json:"positions"`
-	Account     int64 `json:"account"`
-	PlanOrders  int64 `json:"plan_orders"`
+	Ticker     int64 `json:"ticker"`
+	Candle     int64 `json:"candle"`
+	OrderBook  int64 `json:"orderbook"`
+	Trade      int64 `json:"trade"`
+	MarkPrice  int64 `json:"mark_price"`
+	Funding    int64 `json:"funding"`
+	Orders     int64 `json:"orders"`
+	Fills      int64 `json:"fills"`
+	Positions  int64 `json:"positions"`
+	Account    int64 `json:"account"`
+	PlanOrders int64 `json:"plan_orders"`
 }
 
 // ComprehensiveDemo manages comprehensive WebSocket channel demonstrations
@@ -49,7 +49,7 @@ type ComprehensiveDemo struct {
 // NewComprehensiveDemo creates a new comprehensive demo instance
 func NewComprehensiveDemo(logger zerolog.Logger) *ComprehensiveDemo {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &ComprehensiveDemo{
 		logger: logger,
 		ctx:    ctx,
@@ -137,7 +137,7 @@ func (d *ComprehensiveDemo) runPublicChannelsDemo() error {
 
 	// Demonstrate all public channels
 	d.demonstrateTickerChannels()
-	d.demonstrateCandlestickChannels() 
+	d.demonstrateCandlestickChannels()
 	d.demonstrateOrderBookChannels()
 	d.demonstrateTradeChannels()
 	d.demonstrateMarkPriceChannels()
@@ -165,13 +165,13 @@ func (d *ComprehensiveDemo) demonstrateTickerChannels() {
 	for _, example := range examples {
 		handler := d.createTickerHandler(example.symbol, example.description)
 		d.publicClient.SubscribeTicker(example.symbol, example.productType, handler)
-		
+
 		d.logger.Info().
 			Str("symbol", example.symbol).
 			Str("product", example.productType).
 			Str("description", example.description).
 			Msg("📈 Subscribed to ticker")
-		
+
 		time.Sleep(500 * time.Millisecond) // Avoid overwhelming the server
 	}
 }
@@ -207,7 +207,7 @@ func (d *ComprehensiveDemo) demonstrateCandlestickChannels() {
 		if i < 4 {
 			handler := d.createCandleHandler(symbol, tf.value, tf.description)
 			d.publicClient.SubscribeCandles(symbol, productType, tf.value, handler)
-			
+
 			d.logger.Info().
 				Str("symbol", symbol).
 				Str("timeframe", tf.value).
@@ -220,7 +220,7 @@ func (d *ComprehensiveDemo) demonstrateCandlestickChannels() {
 				Str("description", tf.description).
 				Msg("🕯️ Available timeframe")
 		}
-		
+
 		time.Sleep(200 * time.Millisecond)
 	}
 }
@@ -387,14 +387,14 @@ func (d *ComprehensiveDemo) subscribeToPrivateChannels() {
 		// Order updates
 		d.privateClient.SubscribeOrders(productType, d.createOrdersHandler(productType))
 
-		// Fill updates  
-		d.privateClient.SubscribeFills(productType, d.createFillsHandler(productType))
+		// Fill updates
+		d.privateClient.SubscribeFills("", productType, d.createFillsHandler(productType))
 
 		// Position updates
 		d.privateClient.SubscribePositions(productType, d.createPositionsHandler(productType))
 
 		// Account updates
-		d.privateClient.SubscribeAccount(productType, d.createAccountHandler(productType))
+		d.privateClient.SubscribeAccount("", productType, d.createAccountHandler(productType))
 
 		// Plan order updates
 		d.privateClient.SubscribePlanOrders(productType, d.createPlanOrdersHandler(productType))
@@ -406,128 +406,128 @@ func (d *ComprehensiveDemo) subscribeToPrivateChannels() {
 // Message Handler Creation Methods
 
 func (d *ComprehensiveDemo) createTickerHandler(symbol, description string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Ticker++
 		d.logger.Debug().
 			Str("symbol", symbol).
 			Str("description", description).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("📊 TICKER")
 	}
 }
 
 func (d *ComprehensiveDemo) createCandleHandler(symbol, timeframe, description string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Candle++
 		d.logger.Debug().
 			Str("symbol", symbol).
 			Str("timeframe", timeframe).
 			Str("description", description).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("🕯️ CANDLE")
 	}
 }
 
 func (d *ComprehensiveDemo) createOrderBookHandler(symbol, levels, description string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.OrderBook++
 		d.logger.Debug().
 			Str("symbol", symbol).
 			Str("levels", levels).
 			Str("description", description).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("📚 ORDER_BOOK")
 	}
 }
 
 func (d *ComprehensiveDemo) createTradeHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Trade++
 		d.logger.Debug().
 			Str("symbol", symbol).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("💰 TRADE")
 	}
 }
 
 func (d *ComprehensiveDemo) createMarkPriceHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.MarkPrice++
 		d.logger.Debug().
 			Str("symbol", symbol).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("🎯 MARK_PRICE")
 	}
 }
 
 func (d *ComprehensiveDemo) createFundingHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Funding++
 		d.logger.Debug().
 			Str("symbol", symbol).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("💸 FUNDING")
 	}
 }
 
 func (d *ComprehensiveDemo) createOrdersHandler(productType string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Orders++
 		d.logger.Info().
 			Str("productType", productType).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("📋 ORDER_UPDATE")
 	}
 }
 
 func (d *ComprehensiveDemo) createFillsHandler(productType string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Fills++
 		d.logger.Info().
 			Str("productType", productType).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("✅ FILL_UPDATE")
 	}
 }
 
 func (d *ComprehensiveDemo) createPositionsHandler(productType string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Positions++
 		d.logger.Info().
 			Str("productType", productType).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("📊 POSITION_UPDATE")
 	}
 }
 
 func (d *ComprehensiveDemo) createAccountHandler(productType string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.Account++
 		d.logger.Info().
 			Str("productType", productType).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("💰 ACCOUNT_UPDATE")
 	}
 }
 
 func (d *ComprehensiveDemo) createPlanOrdersHandler(productType string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		d.stats.PlanOrders++
 		d.logger.Info().
 			Str("productType", productType).
-			Str("data", message).
+			Str("data", string(message)).
 			Msg("⚡ PLAN_ORDER_UPDATE")
 	}
 }
 
 // Utility Methods
 
-func (d *ComprehensiveDemo) generalMessageHandler(message string) {
-	d.logger.Debug().Str("data", message).Msg("ℹ️ GENERAL")
+func (d *ComprehensiveDemo) generalMessageHandler(message []byte) {
+	d.logger.Debug().Str("data", string(message)).Msg("ℹ️ GENERAL")
 }
 
-func (d *ComprehensiveDemo) errorHandler(message string) {
-	d.logger.Error().Str("error", message).Msg("❌ ERROR")
+func (d *ComprehensiveDemo) errorHandler(message []byte) {
+	d.logger.Error().Str("error", string(message)).Msg("❌ ERROR")
 }
 
 // monitorConnectionHealth monitors both connections
@@ -582,7 +582,7 @@ func (d *ComprehensiveDemo) displayCurrentStats() {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("📊 COMPREHENSIVE WEBSOCKET DEMO - LIVE STATISTICS")
 	fmt.Println(strings.Repeat("=", 80))
-	
+
 	fmt.Printf("📈 Ticker Messages:     %d\n", d.stats.Ticker)
 	fmt.Printf("🕯️  Candle Messages:     %d\n", d.stats.Candle)
 	fmt.Printf("📚 OrderBook Messages:  %d\n", d.stats.OrderBook)
@@ -594,21 +594,21 @@ func (d *ComprehensiveDemo) displayCurrentStats() {
 	fmt.Printf("📊 Position Updates:    %d\n", d.stats.Positions)
 	fmt.Printf("💰 Account Updates:     %d\n", d.stats.Account)
 	fmt.Printf("⚡ Plan Order Updates:  %d\n", d.stats.PlanOrders)
-	
+
 	totalPublic := d.publicClient.GetSubscriptionCount()
 	totalPrivate := 0
 	if d.privateClient != nil {
 		totalPrivate = d.privateClient.GetSubscriptionCount()
 	}
-	
-	fmt.Printf("\n🔌 Active Subscriptions: %d (Public: %d, Private: %d)\n", 
-		totalPublic + totalPrivate, totalPublic, totalPrivate)
-	
+
+	fmt.Printf("\n🔌 Active Subscriptions: %d (Public: %d, Private: %d)\n",
+		totalPublic+totalPrivate, totalPublic, totalPrivate)
+
 	// Calculate total messages
 	total := d.stats.Ticker + d.stats.Candle + d.stats.OrderBook + d.stats.Trade +
 		d.stats.MarkPrice + d.stats.Funding + d.stats.Orders + d.stats.Fills +
 		d.stats.Positions + d.stats.Account + d.stats.PlanOrders
-	
+
 	fmt.Printf("📨 Total Messages:      %d\n", total)
 	fmt.Println(strings.Repeat("=", 80))
 }

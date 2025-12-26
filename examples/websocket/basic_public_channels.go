@@ -61,46 +61,46 @@ func subscribeToMarketData(client *ws.BaseWsClient) {
 	fmt.Printf("📈 Subscribing to market data for %s...\n", symbol)
 
 	// 1. Subscribe to ticker updates (24hr statistics)
-	client.SubscribeTicker(symbol, productType, func(message string) {
+	client.SubscribeTicker(symbol, productType, func(message []byte) {
 		fmt.Printf("📊 TICKER: %s\n", message)
 	})
 
 	// 2. Subscribe to 1-minute candlesticks
-	client.SubscribeCandles(symbol, productType, ws.Timeframe1m, func(message string) {
+	client.SubscribeCandles(symbol, productType, ws.Timeframe1m, func(message []byte) {
 		fmt.Printf("🕯️  CANDLE 1m: %s\n", message)
 	})
 
 	// 3. Subscribe to top 5 order book levels
-	client.SubscribeOrderBook5(symbol, productType, func(message string) {
+	client.SubscribeOrderBook5(symbol, productType, func(message []byte) {
 		fmt.Printf("📚 ORDER BOOK (Top 5): %s\n", message)
 	})
 
 	// 4. Subscribe to trade executions
-	client.SubscribeTrades(symbol, productType, func(message string) {
+	client.SubscribeTrades(symbol, productType, func(message []byte) {
 		fmt.Printf("💰 TRADE: %s\n", message)
 	})
 
 	// 5. Subscribe to mark price updates
-	client.SubscribeMarkPrice(symbol, productType, func(message string) {
+	client.SubscribeMarkPrice(symbol, productType, func(message []byte) {
 		fmt.Printf("🎯 MARK PRICE: %s\n", message)
 	})
 
 	// 6. Subscribe to funding rate information
-	client.SubscribeFundingTime(symbol, productType, func(message string) {
+	client.SubscribeFundingTime(symbol, productType, func(message []byte) {
 		fmt.Printf("💸 FUNDING: %s\n", message)
 	})
 
 	fmt.Printf("✅ Subscribed to %d channels\n", client.GetSubscriptionCount())
 }
 
-func defaultMessageHandlerForPublic(message string) {
+func defaultMessageHandlerForPublic(message []byte) {
 	// This handler receives all messages that don't have specific handlers
-	fmt.Printf("📝 DEFAULT: %s\n", message)
+	fmt.Printf("📝 DEFAULT: %s\n", string(message))
 }
 
-func errorMessageHandlerForPublic(message string) {
+func errorMessageHandlerForPublic(message []byte) {
 	// This handler receives error messages
-	fmt.Printf("❌ ERROR: %s\n", message)
+	fmt.Printf("❌ ERROR: %s\n", string(message))
 }
 
 func setupGracefulShutdownForPublic(client *ws.BaseWsClient) {

@@ -156,7 +156,7 @@ func (m *MarketDataProcessor) SubscribeToSymbols(symbols []string) {
 
 // createOptimizedTickerHandler creates an optimized ticker handler
 func (m *MarketDataProcessor) createOptimizedTickerHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		// Increment update counter atomically
 		m.mu.Lock()
 		m.updateCount++
@@ -170,7 +170,7 @@ func (m *MarketDataProcessor) createOptimizedTickerHandler(symbol string) ws.OnR
 				}
 			}()
 
-			ticker, err := m.parseTickerMessage(symbol, message)
+			ticker, err := m.parseTickerMessage(symbol, string(message))
 			if err != nil {
 				m.errorChan <- fmt.Errorf("failed to parse ticker for %s: %w", symbol, err)
 				return
@@ -357,14 +357,14 @@ func (m *MarketDataProcessor) GetMarketSummary() map[string]*AdvancedTicker {
 }
 
 // messageHandler handles general WebSocket messages
-func (m *MarketDataProcessor) messageHandler(message string) {
+func (m *MarketDataProcessor) messageHandler(message []byte) {
 	// Handle general messages (like ping/pong, status updates)
-	m.logger.Debug().Msgf("General message: %s", message)
+	m.logger.Debug().Msgf("General message: %s", string(message))
 }
 
 // errorHandler handles WebSocket errors
-func (m *MarketDataProcessor) errorHandler(message string) {
-	err := fmt.Errorf("websocket error: %s", message)
+func (m *MarketDataProcessor) errorHandler(message []byte) {
+	err := fmt.Errorf("websocket error: %s", string(message))
 
 	select {
 	case m.errorChan <- err:

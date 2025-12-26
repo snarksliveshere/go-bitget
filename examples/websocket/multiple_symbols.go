@@ -127,7 +127,7 @@ func subscribeToMultipleSymbols(client *ws.BaseWsClient, symbols []string, symbo
 }
 
 func createTickerHandler(symbol string, data *SymbolData) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		// Parse ticker message and update data
 		// In real implementation, you would parse the JSON message
 		fmt.Printf("📊 %s TICKER UPDATE\n", symbol)
@@ -138,13 +138,13 @@ func createTickerHandler(symbol string, data *SymbolData) ws.OnReceive {
 }
 
 func createTradeHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		fmt.Printf("💰 %s TRADE: %s\n", symbol, message)
 	}
 }
 
 func createCandleHandler(symbol string) ws.OnReceive {
-	return func(message string) {
+	return func(message []byte) {
 		fmt.Printf("🕯️  %s CANDLE 5m: %s\n", symbol, message)
 	}
 }
@@ -187,11 +187,11 @@ func displaySummary(symbolData map[string]*SymbolData) {
 	fmt.Println(strings.Repeat("=", 80))
 }
 
-func defaultHandler(message string) {
+func defaultHandler(message []byte) {
 	// Handle general messages
 }
 
-func errorHandler(message string) {
+func errorHandler(message []byte) {
 	fmt.Printf("❌ ERROR: %s\n", message)
 }
 

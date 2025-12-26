@@ -13,7 +13,7 @@ import (
 // TestSDKIntegration verifies the SDK works end-to-end with all refactored packages
 func TestSDKIntegration(t *testing.T) {
 	// Create client
-	client := futures.NewClient("test-key", "test-secret", "test-passphrase")
+	client := futures.NewClient("test-key", "test-secret", "test-passphrase", false)
 
 	t.Run("AllServiceConstructorsWork", func(t *testing.T) {
 		// Account services
@@ -24,7 +24,7 @@ func TestSDKIntegration(t *testing.T) {
 			t.Error("SetLeverageService constructor failed")
 		}
 
-		// Market services  
+		// Market services
 		if market.NewCandlestickService(client) == nil {
 			t.Error("CandlestickService constructor failed")
 		}
@@ -65,7 +65,7 @@ func TestSDKIntegration(t *testing.T) {
 			t.Error("Market service fluent API failed")
 		}
 
-		// Test trading service fluent API  
+		// Test trading service fluent API
 		tradingService := trading.NewCreateOrderService(client).
 			Symbol("BTCUSDT").
 			ProductType(trading.ProductTypeUSDTFutures).
@@ -110,7 +110,7 @@ func TestSDKIntegration(t *testing.T) {
 // TestServiceCount verifies we have all expected services
 func TestServiceCount(t *testing.T) {
 	t.Run("AllServicesImplemented", func(t *testing.T) {
-		client := futures.NewClient("test", "test", "test")
+		client := futures.NewClient("test", "test", "test", false)
 
 		// Count all services that can be created
 		accountServices := []interface{}{

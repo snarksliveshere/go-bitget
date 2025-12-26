@@ -51,7 +51,7 @@ func TestChannelConstants(t *testing.T) {
 func TestSubscribeTicker(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Test subscription
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
@@ -73,7 +73,7 @@ func TestSubscribeTicker(t *testing.T) {
 func TestSubscribeCandles(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Test subscription with different timeframes
 	testCases := []struct {
@@ -101,7 +101,7 @@ func TestSubscribeCandles(t *testing.T) {
 func TestSubscribeOrderBookVariants(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Test all order book subscription variants
 	client.SubscribeOrderBook("BTCUSDT", "USDT-FUTURES", handler)
@@ -118,7 +118,7 @@ func TestSubscribeOrderBookVariants(t *testing.T) {
 func TestSubscribeTrades(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	client.SubscribeTrades("ADAUSDT", "USDT-FUTURES", handler)
 
@@ -129,7 +129,7 @@ func TestSubscribeTrades(t *testing.T) {
 func TestSubscribeFundingTime(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	client.SubscribeFundingTime("ETHUSDT", "USDT-FUTURES", handler)
 
@@ -140,7 +140,7 @@ func TestSubscribeFundingTime(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Add some subscriptions
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
@@ -167,7 +167,7 @@ func TestUnsubscribe(t *testing.T) {
 func TestSpecificUnsubscribeMethods(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Add subscriptions for all channel types
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
@@ -211,7 +211,7 @@ func TestSpecificUnsubscribeMethods(t *testing.T) {
 func TestMultipleSymbolsAndProductTypes(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Test subscriptions with different symbols and product types
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
@@ -232,8 +232,8 @@ func TestMultipleSymbolsAndProductTypes(t *testing.T) {
 func TestGetActiveSubscriptions(t *testing.T) {
 	client := createTestClient()
 
-	handler1 := func(message string) {}
-	handler2 := func(message string) {}
+	handler1 := func(message []byte) {}
+	handler2 := func(message []byte) {}
 
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler1)
 	client.SubscribeCandles("ETHUSDT", "USDT-FUTURES", Timeframe1h, handler2)
@@ -262,7 +262,7 @@ func TestGetActiveSubscriptions(t *testing.T) {
 func TestIsSubscribed(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Initially not subscribed
 	assert.False(t, client.IsSubscribed(ChannelTicker, "BTCUSDT", "USDT-FUTURES"))
@@ -284,7 +284,7 @@ func TestIsSubscribed(t *testing.T) {
 func TestGetSubscriptionCount(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Initially empty
 	assert.Equal(t, 0, client.GetSubscriptionCount())
@@ -345,9 +345,9 @@ func TestHandlerInvocation(t *testing.T) {
 
 	// Test that handlers are stored correctly and can be retrieved
 	handlerCalled := false
-	handler := func(message string) {
+	handler := func(message []byte) {
 		handlerCalled = true
-		assert.Equal(t, "test message", message)
+		assert.Equal(t, "test message", string(message))
 	}
 
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
@@ -364,14 +364,14 @@ func TestHandlerInvocation(t *testing.T) {
 	assert.NotNil(t, storedHandler)
 
 	// Invoke the handler
-	storedHandler("test message")
+	storedHandler([]byte("test message"))
 	assert.True(t, handlerCalled)
 }
 
 func TestConcurrentSubscriptions(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Test multiple subscriptions to the same symbol with different channels
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
@@ -403,7 +403,7 @@ func TestConcurrentSubscriptions(t *testing.T) {
 func TestSubscribeOrders(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	client.SubscribeOrders("USDT-FUTURES", handler)
 
@@ -414,9 +414,9 @@ func TestSubscribeOrders(t *testing.T) {
 func TestSubscribeFills(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
-	client.SubscribeFills("COIN-FUTURES", handler)
+	client.SubscribeFills("", "COIN-FUTURES", handler)
 
 	assert.True(t, client.IsSubscribed(ChannelFill, "", "COIN-FUTURES"))
 	assert.Equal(t, 1, client.GetSubscriptionCount())
@@ -425,7 +425,7 @@ func TestSubscribeFills(t *testing.T) {
 func TestSubscribePositions(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	client.SubscribePositions("USDT-FUTURES", handler)
 
@@ -436,9 +436,9 @@ func TestSubscribePositions(t *testing.T) {
 func TestSubscribeAccount(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
-	client.SubscribeAccount("USDT-FUTURES", handler)
+	client.SubscribeAccount("", "USDT-FUTURES", handler)
 
 	assert.True(t, client.IsSubscribed(ChannelAccount, "", "USDT-FUTURES"))
 	assert.Equal(t, 1, client.GetSubscriptionCount())
@@ -447,7 +447,7 @@ func TestSubscribeAccount(t *testing.T) {
 func TestSubscribePlanOrders(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	client.SubscribePlanOrders("USDT-FUTURES", handler)
 
@@ -458,13 +458,13 @@ func TestSubscribePlanOrders(t *testing.T) {
 func TestPrivateChannelUnsubscribeMethods(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Add subscriptions for all private channel types
 	client.SubscribeOrders("USDT-FUTURES", handler)
-	client.SubscribeFills("USDT-FUTURES", handler)
+	client.SubscribeFills("", "USDT-FUTURES", handler)
 	client.SubscribePositions("USDT-FUTURES", handler)
-	client.SubscribeAccount("USDT-FUTURES", handler)
+	client.SubscribeAccount("", "USDT-FUTURES", handler)
 	client.SubscribePlanOrders("USDT-FUTURES", handler)
 
 	initialCount := client.GetSubscriptionCount()
@@ -495,13 +495,13 @@ func TestPrivateChannelUnsubscribeMethods(t *testing.T) {
 func TestMultipleProductTypesPrivateChannels(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Test subscriptions with different product types for private channels
 	client.SubscribeOrders("USDT-FUTURES", handler)
 	client.SubscribeOrders("COIN-FUTURES", handler)
-	client.SubscribeFills("USDT-FUTURES", handler)
-	client.SubscribeFills("COIN-FUTURES", handler)
+	client.SubscribeFills("", "USDT-FUTURES", handler)
+	client.SubscribeFills("", "COIN-FUTURES", handler)
 
 	assert.True(t, client.IsSubscribed(ChannelOrders, "", "USDT-FUTURES"))
 	assert.True(t, client.IsSubscribed(ChannelOrders, "", "COIN-FUTURES"))
@@ -554,13 +554,13 @@ func TestPrivateChannelSubscriptionArgs(t *testing.T) {
 func TestMixedPublicAndPrivateSubscriptions(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Mix of public and private subscriptions
 	client.SubscribeTicker("BTCUSDT", "USDT-FUTURES", handler)
 	client.SubscribeOrders("USDT-FUTURES", handler)
 	client.SubscribeCandles("ETHUSDT", "USDT-FUTURES", Timeframe1m, handler)
-	client.SubscribeFills("USDT-FUTURES", handler)
+	client.SubscribeFills("", "USDT-FUTURES", handler)
 	client.SubscribeOrderBook("ADAUSDT", "USDT-FUTURES", handler)
 	client.SubscribePositions("USDT-FUTURES", handler)
 
@@ -629,7 +629,7 @@ func TestPrivateChannelHandlerInvocation(t *testing.T) {
 
 	// Test that private channel handlers are stored correctly and can be retrieved
 	handlerCalled := false
-	handler := func(message string) {
+	handler := func(message []byte) {
 		handlerCalled = true
 		assert.Equal(t, "test private message", message)
 	}
@@ -648,20 +648,20 @@ func TestPrivateChannelHandlerInvocation(t *testing.T) {
 	assert.NotNil(t, storedHandler)
 
 	// Invoke the handler
-	storedHandler("test private message")
+	storedHandler([]byte("test private message"))
 	assert.True(t, handlerCalled)
 }
 
 func TestAllPrivateChannelTypes(t *testing.T) {
 	client := createTestClient()
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	// Subscribe to all private channel types
 	client.SubscribeOrders("USDT-FUTURES", handler)
-	client.SubscribeFills("USDT-FUTURES", handler)
+	client.SubscribeFills("", "USDT-FUTURES", handler)
 	client.SubscribePositions("USDT-FUTURES", handler)
-	client.SubscribeAccount("USDT-FUTURES", handler)
+	client.SubscribeAccount("", "USDT-FUTURES", handler)
 	client.SubscribePlanOrders("USDT-FUTURES", handler)
 
 	// Verify all are subscribed

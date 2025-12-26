@@ -74,7 +74,7 @@ func (m *MockBaseWsClient) SubscribeOrders(productType string, handler ws.OnRece
 	m.subscriptions["orders"] = true
 }
 
-func (m *MockBaseWsClient) SubscribeFills(productType string, handler ws.OnReceive) {
+func (m *MockBaseWsClient) SubscribeFills(symbol, productType string, handler ws.OnReceive) {
 	m.Called(productType, handler)
 	m.subscriptCount++
 	m.subscriptions["fills"] = true
@@ -86,7 +86,7 @@ func (m *MockBaseWsClient) SubscribePositions(productType string, handler ws.OnR
 	m.subscriptions["positions"] = true
 }
 
-func (m *MockBaseWsClient) SubscribeAccount(productType string, handler ws.OnReceive) {
+func (m *MockBaseWsClient) SubscribeAccount(str, productType string, handler ws.OnReceive) {
 	m.Called(productType, handler)
 	m.subscriptCount++
 	m.subscriptions["account"] = true
@@ -150,16 +150,16 @@ func createTestWebSocketManager() *WebSocketManager {
 	mockClient := &MockBaseWsClient{
 		subscriptions: make(map[string]bool),
 	}
-	
+
 	return &WebSocketManager{
-		client:  client,
-		logger:  zerolog.Nop(), // Silent logger for tests
+		client:   client,
+		logger:   zerolog.Nop(), // Silent logger for tests
 		wsClient: mockClient,
 	}
 }
 
 func TestWebSocketManager_NewWebSocketManager(t *testing.T) {
-	client := NewClient("test-key", "test-secret", "test-passphrase")
+	client := NewClient("test-key", "test-secret", "test-passphrase", false)
 	wsManager := client.NewWebSocketManager()
 
 	assert.NotNil(t, wsManager)
@@ -187,7 +187,7 @@ func TestWebSocketManager_SubscribeToTicker(t *testing.T) {
 	wsManager.isConnected = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {
+	handler := func(message []byte) {
 		// Test handler
 	}
 
@@ -203,7 +203,7 @@ func TestWebSocketManager_SubscribeToTicker_NotConnected(t *testing.T) {
 	wsManager := createTestWebSocketManager()
 	wsManager.isConnected = false
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	err := wsManager.SubscribeToTicker("BTCUSDT", handler)
 
@@ -216,7 +216,7 @@ func TestWebSocketManager_SubscribeToCandlesticks(t *testing.T) {
 	wsManager.isConnected = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeCandles", "BTCUSDT", string(ProductTypeUSDTFutures), "1m", mock.Anything).Return()
 
@@ -231,7 +231,7 @@ func TestWebSocketManager_SubscribeToOrderBook_Levels(t *testing.T) {
 	wsManager.isConnected = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	tests := []struct {
 		name   string
@@ -262,7 +262,7 @@ func TestWebSocketManager_SubscribeToTrades(t *testing.T) {
 	wsManager.isConnected = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeTrades", "BTCUSDT", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -277,7 +277,7 @@ func TestWebSocketManager_SubscribeToMarkPrice(t *testing.T) {
 	wsManager.isConnected = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeMarkPrice", "BTCUSDT", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -292,7 +292,7 @@ func TestWebSocketManager_SubscribeToFunding(t *testing.T) {
 	wsManager.isConnected = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeFundingTime", "BTCUSDT", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -311,7 +311,7 @@ func TestWebSocketManager_SubscribeToOrders(t *testing.T) {
 	wsManager.isLoggedIn = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeOrders", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -327,7 +327,7 @@ func TestWebSocketManager_SubscribeToOrders_NotAuthenticated(t *testing.T) {
 	wsManager.isPrivate = false
 	wsManager.isLoggedIn = false
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	err := wsManager.SubscribeToOrders(handler)
 
@@ -342,7 +342,7 @@ func TestWebSocketManager_SubscribeToFills(t *testing.T) {
 	wsManager.isLoggedIn = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeFills", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -359,7 +359,7 @@ func TestWebSocketManager_SubscribeToPositions(t *testing.T) {
 	wsManager.isLoggedIn = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribePositions", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -376,7 +376,7 @@ func TestWebSocketManager_SubscribeToAccount(t *testing.T) {
 	wsManager.isLoggedIn = true
 	mockClient := wsManager.wsClient.(*MockBaseWsClient)
 
-	handler := func(message string) {}
+	handler := func(message []byte) {}
 
 	mockClient.On("SubscribeAccount", string(ProductTypeUSDTFutures), mock.Anything).Return()
 
@@ -498,10 +498,10 @@ func TestDefaultMarketDataConfig(t *testing.T) {
 	assert.False(t, config.EnableTrades)
 	assert.False(t, config.EnableMarkPrice)
 	assert.False(t, config.EnableFunding)
-	
+
 	assert.Equal(t, ws.Timeframe1m, config.CandleTimeframe)
 	assert.Equal(t, 5, config.OrderBookLevels)
-	
+
 	assert.NotNil(t, config.TickerHandler)
 	assert.NotNil(t, config.CandleHandler)
 	assert.NotNil(t, config.OrderBookHandler)
@@ -514,7 +514,7 @@ func TestDefaultTradingStreamConfig(t *testing.T) {
 	assert.True(t, config.EnableFills)
 	assert.True(t, config.EnablePositions)
 	assert.False(t, config.EnableAccount)
-	
+
 	assert.NotNil(t, config.OrderHandler)
 	assert.NotNil(t, config.FillHandler)
 	assert.NotNil(t, config.PositionHandler)

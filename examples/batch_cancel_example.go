@@ -12,7 +12,7 @@ import (
 func main() {
 	// Initialize the futures client with your API credentials
 	// NOTE: Use demo API keys for testing, production API keys for live trading
-	client := futures.NewClient("your_api_key", "your_secret_key", "your_passphrase")
+	client := futures.NewClient("your_api_key", "your_secret_key", "your_passphrase", false)
 
 	// Example 1: Cancel orders by order IDs
 	fmt.Println("Example 1: Batch cancel orders by order IDs")
