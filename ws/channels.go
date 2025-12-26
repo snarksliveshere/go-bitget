@@ -5,6 +5,7 @@ package ws
 
 import (
 	"fmt"
+
 	"github.com/khanbekov/go-bitget/common"
 )
 
@@ -38,11 +39,11 @@ const (
 	ChannelFundingTime = "funding-time" // Funding rate and time
 
 	// Private channels (require authentication)
-	ChannelOrders    = "orders"     // Real-time order updates
-	ChannelFill      = "fill"       // Real-time fill/execution updates
-	ChannelPositions = "positions"  // Real-time position updates
-	ChannelAccount   = "account"    // Account balance updates
-	ChannelPlanOrder = "plan-order" // Trigger order updates
+	ChannelOrders    = "orders"      // Real-time order updates
+	ChannelFill      = "fill"        // Real-time fill/execution updates
+	ChannelPositions = "positions"   // Real-time position updates
+	ChannelAccount   = "account"     // Account balance updates
+	ChannelPlanOrder = "orders-algo" // Trigger order updates https://www.bitget.com/api-doc/contract/websocket/private/Plan-Order-Channel
 )
 
 // SubscribeTicker subscribes to real-time ticker updates for a specific symbol.
