@@ -435,7 +435,6 @@ func (c *BaseWsClient) disconnectWebSocket() {
 
 func (c *BaseWsClient) ReadLoop() {
 	for {
-
 		if c.webSocketClient == nil {
 			c.logger.Error().Msg("error on message read: no connection available")
 			time.Sleep(100 * time.Millisecond)
@@ -445,24 +444,27 @@ func (c *BaseWsClient) ReadLoop() {
 		_, buf, err := c.webSocketClient.ReadMessage()
 		if err != nil {
 			c.logger.Warn().Err(err).Str("msg", string(buf)).Msg("error on message read")
-
-			// Handle different types of connection errors
-			if websocket.IsCloseError(err,
-				websocket.CloseNormalClosure,
-				websocket.CloseAbnormalClosure,
-				websocket.CloseGoingAway,
-				websocket.CloseAbnormalClosure,
-				websocket.CloseNoStatusReceived,
-				websocket.CloseProtocolError,
-				websocket.CloseInternalServerErr,
-				websocket.CloseServiceRestart,
-			) {
-				c.logger.Info().Msg("WebSocket closed, attempting reconnection")
-
-				// Use improved reconnection logic
-				if err := c.performReconnection(); err != nil {
-					c.logger.Error().Err(err).Msg("Failed to reconnect after close error")
-				}
+			//
+			// // Handle different types of connection errors
+			// if websocket.IsCloseError(err,
+			// 	websocket.CloseNormalClosure,
+			// 	websocket.CloseAbnormalClosure,
+			// 	websocket.CloseGoingAway,
+			// 	websocket.CloseAbnormalClosure,
+			// 	websocket.CloseNoStatusReceived,
+			// 	websocket.CloseProtocolError,
+			// 	websocket.CloseInternalServerErr,
+			// 	websocket.CloseServiceRestart,
+			// ) {
+			// 	c.logger.Info().Msg("WebSocket closed, attempting reconnection")
+			//
+			// 	// Use improved reconnection logic
+			// 	if err := c.performReconnection(); err != nil {
+			// 		c.logger.Error().Err(err).Msg("Failed to reconnect after close error")
+			// 	}
+			// }
+			if err := c.performReconnection(); err != nil {
+				c.logger.Error().Err(err).Msg("Failed to reconnect after close error")
 			}
 			continue
 		}
