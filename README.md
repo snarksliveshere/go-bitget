@@ -1,3 +1,7 @@
+get commit
+echo "v0.0.0-$(TZ=UTC git log -1 --date="format-local:%Y%m%d%H%M%S" --pretty="format:%cd")-$(git rev-parse --short=12 HEAD)"
+
+
 # Go Bitget SDK
 
 [![GitHub release](https://img.shields.io/github/release/khanbekov/go-bitget.svg)](https://github.com/khanbekov/go-bitget/releases)
