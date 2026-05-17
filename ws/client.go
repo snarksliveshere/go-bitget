@@ -18,6 +18,7 @@ import (
 	"github.com/khanbekov/go-bitget/common"
 	"github.com/khanbekov/go-bitget/common/types"
 	"github.com/rs/zerolog"
+	"gitlab.com/snarksliveshere/goutils/log"
 
 	"github.com/gorilla/websocket"
 	"github.com/robfig/cron/v3"
@@ -49,7 +50,7 @@ type BaseWsClient struct {
 	connected             bool                           // Current connection status
 	loginStatus           bool                           // Authentication status
 	url                   string                         // WebSocket endpoint URL
-	logger                zerolog.Logger                 // Logger for debugging and monitoring
+	logger                *zerolog.Logger                // Logger for debugging and monitoring
 	listener              OnReceive                      // Default message handler
 	errorListener         OnReceive                      // Error message handler
 	checkConnectionTicker *time.Ticker                   // Timer for connection health checks
@@ -77,9 +78,9 @@ type BaseWsClient struct {
 //   - secretKey: Secret key for authentication (empty string for public channels)
 //
 // Returns a configured BaseWsClient ready for connection.
-func NewBitgetBaseWsClient(logger zerolog.Logger, url, secretKey string) *BaseWsClient {
+func NewBitgetBaseWsClient(logFactory log.Factory, url, secretKey string) *BaseWsClient {
 	return &BaseWsClient{
-		logger:                logger,
+		logger:                logFactory("bitgetWs"),
 		url:                   url,
 		subscribeRequests:     types.NewSet(),
 		signer:                common.NewSigner(secretKey),
