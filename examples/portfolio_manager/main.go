@@ -13,27 +13,26 @@ import (
 	"github.com/khanbekov/go-bitget/futures/account"
 	"github.com/khanbekov/go-bitget/futures/market"
 	"github.com/khanbekov/go-bitget/futures/position"
-	"github.com/khanbekov/go-bitget/futures/trading"
 )
 
 // PortfolioManager demonstrates advanced portfolio management
 type PortfolioManager struct {
-	client      *futures.Client
-	ctx         context.Context
-	
+	client *futures.Client
+	ctx    context.Context
+
 	// Portfolio configuration
 	symbols     []string
 	productType string
-	
+
 	// Risk management
-	maxPositions      int
-	maxRiskPerTrade   float64 // % of portfolio
-	maxTotalExposure  float64 // % of portfolio
-	
+	maxPositions     int
+	maxRiskPerTrade  float64 // % of portfolio
+	maxTotalExposure float64 // % of portfolio
+
 	// Portfolio state
-	totalBalance      float64
-	currentExposure   float64
-	positions         map[string]*PositionInfo
+	totalBalance    float64
+	currentExposure float64
+	positions       map[string]*PositionInfo
 }
 
 // PositionInfo holds detailed position information
@@ -67,6 +66,7 @@ func NewPortfolioManager() *PortfolioManager {
 		os.Getenv("BITGET_API_KEY"),
 		os.Getenv("BITGET_SECRET_KEY"),
 		os.Getenv("BITGET_PASSPHRASE"),
+		false,
 	)
 
 	return &PortfolioManager{
@@ -74,12 +74,12 @@ func NewPortfolioManager() *PortfolioManager {
 		ctx:         context.Background(),
 		symbols:     []string{"BTCUSDT", "ETHUSDT", "ADAUSDT", "SOLUSDT", "DOGEUSDT"},
 		productType: "USDT-FUTURES",
-		
+
 		// Risk management settings
 		maxPositions:     3,    // Maximum 3 concurrent positions
 		maxRiskPerTrade:  0.02, // Max 2% risk per trade
 		maxTotalExposure: 0.5,  // Max 50% total exposure
-		
+
 		positions: make(map[string]*PositionInfo),
 	}
 }
@@ -254,7 +254,7 @@ func (pm *PortfolioManager) generatePortfolioSummary() *PortfolioSummary {
 	if exposurePct > 0.7 {
 		summary.RiskLevel = "HIGH"
 	} else if exposurePct > 0.4 {
-		summary.RiskLevel = "MEDIUM"  
+		summary.RiskLevel = "MEDIUM"
 	} else {
 		summary.RiskLevel = "LOW"
 	}
@@ -268,7 +268,7 @@ func (pm *PortfolioManager) generatePortfolioSummary() *PortfolioSummary {
 	topCount := min(3, len(allPositions))
 	if topCount > 0 {
 		summary.TopPerformers = allPositions[:topCount]
-		
+
 		// Reverse for worst performers
 		worstStart := max(0, len(allPositions)-3)
 		summary.WorstPerformers = allPositions[worstStart:]
@@ -281,14 +281,14 @@ func (pm *PortfolioManager) generatePortfolioSummary() *PortfolioSummary {
 func (pm *PortfolioManager) displayPortfolioReport(summary *PortfolioSummary) {
 	fmt.Println("\n" + "="*60)
 	fmt.Println("📊 PORTFOLIO SUMMARY", time.Now().Format("15:04:05"))
-	fmt.Println("="*60)
+	fmt.Println("=" * 60)
 
 	// Overall metrics
 	fmt.Printf("💰 Total Balance:      $%.2f USDT\n", summary.TotalBalance)
-	fmt.Printf("💸 Available:          $%.2f USDT (%.1f%%)\n", 
-		summary.AvailableBalance, 
+	fmt.Printf("💸 Available:          $%.2f USDT (%.1f%%)\n",
+		summary.AvailableBalance,
 		summary.AvailableBalance/summary.TotalBalance*100)
-	fmt.Printf("📈 Total Exposure:     $%.2f USDT (%.1f%%)\n", 
+	fmt.Printf("📈 Total Exposure:     $%.2f USDT (%.1f%%)\n",
 		summary.TotalExposure,
 		summary.TotalExposure/summary.TotalBalance*100)
 	fmt.Printf("📊 Unrealized PnL:     $%.2f USDT", summary.UnrealizedPnL)
@@ -304,7 +304,7 @@ func (pm *PortfolioManager) displayPortfolioReport(summary *PortfolioSummary) {
 	if len(pm.positions) > 0 {
 		fmt.Println("\n📋 ACTIVE POSITIONS:")
 		fmt.Println("-" * 60)
-		
+
 		for symbol, pos := range pm.positions {
 			pnlPct := (pos.UnrealizedPnL / pos.MarginUsed) * 100
 			fmt.Printf("%s: %s %.4f @ $%.2f → $%.2f (%.2f%%) %s\n",
@@ -326,7 +326,7 @@ func (pm *PortfolioManager) displayPortfolioReport(summary *PortfolioSummary) {
 		}
 	}
 
-	// Worst performers  
+	// Worst performers
 	if len(summary.WorstPerformers) > 0 {
 		fmt.Println("\n📉 NEEDS ATTENTION:")
 		for _, pos := range summary.WorstPerformers {
@@ -336,7 +336,7 @@ func (pm *PortfolioManager) displayPortfolioReport(summary *PortfolioSummary) {
 		}
 	}
 
-	fmt.Println("="*60)
+	fmt.Println("=" * 60)
 }
 
 // rebalancePortfolio executes portfolio rebalancing logic
@@ -464,7 +464,7 @@ func main() {
 
 	// Create and start portfolio manager
 	pm := NewPortfolioManager()
-	
+
 	log.Println("🎯 Portfolio Manager starting...")
 	log.Println("📊 Monitoring:", pm.symbols)
 	log.Printf("⚙️ Max Positions: %d", pm.maxPositions)
