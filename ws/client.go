@@ -443,6 +443,7 @@ func (c *BaseWsClient) ReadLoop() {
 
 		_, buf, err := c.webSocketClient.ReadMessage()
 		if err != nil {
+			time.Sleep(time.Second)
 			c.logger.Warn().Err(err).Str("msg", string(buf)).Msg("error on message read")
 			//
 			// // Handle different types of connection errors
@@ -581,7 +582,7 @@ func (c *BaseWsClient) restoreSubscriptions() {
 		restoredCount++
 
 		// Small delay between subscriptions to avoid rate limiting
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 	}
 
 	c.logger.Info().
